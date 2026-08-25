@@ -1,0 +1,30 @@
+# --- Core ML / data (your strength) ---
+numpy>=1.26
+pandas>=2.1
+scikit-learn>=1.4
+lightgbm>=4.3
+xgboost>=2.0
+shap>=0.45
+imbalanced-learn>=0.12
+matplotlib>=3.8
+seaborn>=0.13
+Faker>=25.0            # realistic synthetic names/addresses
+
+# --- Serving / API ---
+fastapi>=0.111
+uvicorn[standard]>=0.30
+pydantic>=2.7
+python-dotenv>=1.0
+
+# --- Agent + RAG (Claude) ---
+anthropic>=0.39
+claude-agent-sdk>=0.1.0    # verify exact package name/version on setup
+chromadb>=0.5
+sentence-transformers>=3.0
+
+# --- Audit store ---
+sqlmodel>=0.0.18
+
+# --- Notebooks / tests ---
+jupyter>=1.0
+pytest>=8.0

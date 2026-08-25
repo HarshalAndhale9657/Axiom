@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# Env / secrets
+.env
+*.key
+
+# Data & model artifacts (keep small seed data; ignore large/generated)
+data/*.csv
+data/*.parquet
+!data/seed_*.csv
+models/*.pkl
+models/*.txt
+models/*.joblib
+
+# RAG / audit stores
+.chroma/
+chroma_db/
+*.sqlite
+*.db
+
+# Node / Next.js
+web/node_modules/
+web/.next/
+web/out/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Personal scratch notes (kept locally, not in the public repo)
+/Hackathon info.txt
