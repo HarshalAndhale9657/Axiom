@@ -39,7 +39,7 @@ Python 3.10+ · **LightGBM** (primary) + **IsolationForest** (anomaly layer) · 
 - Type hints on function signatures; f-strings; Python 3.10+.
 - **Black** (line length 100) + **isort** before committing (config in `pyproject.toml`).
 - Pure functions for features; **deterministic seeds everywhere** (reproducibility is graded).
-- Small, reviewable commits. Message prefix: `[data|features|model|rules|agent|rag|api|web|docs] short description`.
+- Small, reviewable commits using **Conventional Commits** with a scope: `feat(data): …`, `fix(model): …`, `test(data): …`, `docs: …`, `chore: …`.
 
 ## Working agreement (how to help me)
 - Before a build task: skim `PLAN.md` + the relevant `docs/conventions/*`.
