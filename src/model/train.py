@@ -29,6 +29,7 @@ from sklearn.isotonic import IsotonicRegression
 from sklearn.metrics import average_precision_score, brier_score_loss, roc_auc_score
 
 from src.features.build_features import FeatureBundle, build_features
+from src.model.predictor import CalibratedRTOModel
 
 DEFAULT_PARAMS: dict = {
     "objective": "binary",
@@ -44,24 +45,6 @@ DEFAULT_PARAMS: dict = {
     "n_jobs": -1,
     "verbose": -1,
 }
-
-
-class CalibratedRTOModel:
-    """A fitted LightGBM wrapped with an isotonic calibrator. Predicts P(RTO)."""
-
-    def __init__(self, booster: lgb.LGBMClassifier, calibrator: IsotonicRegression,
-                 feature_columns: list[str], categorical_columns: list[str]) -> None:
-        self.booster = booster
-        self.calibrator = calibrator
-        self.feature_columns = feature_columns
-        self.categorical_columns = categorical_columns
-
-    def _raw(self, X: pd.DataFrame) -> np.ndarray:
-        return self.booster.predict_proba(X[self.feature_columns])[:, 1]
-
-    def predict_proba(self, X: pd.DataFrame) -> np.ndarray:
-        """Calibrated P(RTO) in [0, 1]."""
-        return self.calibrator.predict(self._raw(X))
 
 
 @dataclass
@@ -151,6 +134,9 @@ def _fmt(m: dict) -> str:
 def main() -> None:
     import argparse
 
+    from src.util import enable_utf8_stdout
+
+    enable_utf8_stdout()
     ap = argparse.ArgumentParser(description="Train the calibrated LightGBM RTO model.")
     ap.add_argument("--in", dest="inp", default="data/cod_orders.csv")
     ap.add_argument("--model-dir", default="models")

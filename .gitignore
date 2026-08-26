@@ -38,3 +38,6 @@ Thumbs.db
 
 # Personal scratch notes (kept locally, not in the public repo)
 /Hackathon info.txt
+
+# Regenerable evaluation figures (final ones committed deliberately under docs/)
+/reports/
