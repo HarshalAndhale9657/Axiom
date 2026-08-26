@@ -154,7 +154,7 @@ def build_features(orders: pd.DataFrame, val_frac: float = 0.15, test_frac: floa
     # --- velocity (bursts) -----------------------------------------------------------
     df["device_orders_24h"] = _velocity_count(df, "device_id", "24h")
     df["pincode_orders_1h"] = _velocity_count(df, "pincode", "1h")
-    df["buyer_orders_7d"] = _velocity_count(df, "buyer_id", "7d")
+    df["buyer_orders_7d"] = _velocity_count(df, "buyer_id", "7D")
 
     # --- graph / ring ----------------------------------------------------------------
     df["device_orders_prior_log"] = np.log1p(_expanding_count(df, "device_id"))
