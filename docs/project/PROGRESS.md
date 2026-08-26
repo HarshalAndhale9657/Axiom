@@ -12,7 +12,8 @@
 - ✅ Git repo live on GitHub (github.com/HarshalAndhale9657/Axiom)
 - ✅ **P1 — synthetic COD data generator** (`src/data/generate_synthetic_cod.py`) + **10 passing tests**. Realistic: COD 27% / prepaid 4% RTO, tier gradient, fraud-ring & repeat-buyer signals; hidden latents split out for leakage-safety.
 - ✅ **P2a — leakage-safe feature pipeline** (`src/features/build_features.py`): 22 features (as-of target encoding, velocity, graph/ring), chronological split, train-only prior. **8 tests incl. leakage guards** — first-sighting enc == prior, deviation `0.0`.
-- ⏭️ **NEXT (P2b):** baseline calibrated LightGBM → first honest PR-AUC
+- ✅ **P2b — baseline calibrated LightGBM** (`src/model/train.py`): honest **TEST PR-AUC 0.512 vs 0.169 baseline (3.0×), ROC-AUC 0.799, Brier 0.108**. Natural distribution + isotonic calibration on val; test untouched. 4 tests pass.
+- ⏭️ **NEXT (P4 ★ crown jewel):** BMR rupee cost-vs-threshold curve + τ\* + SHAP + IsolationForest anomaly + failure-mode matrix
 
 ## Phase checklist (compressed ~10-day plan)
 - [x] **P1 — Data:** causal synthetic COD generator + tests ✓ (real-pincode grounding + EDA notebook = next)
