@@ -113,6 +113,43 @@ export interface Leakage {
   leaky: LeakageMetrics;
 }
 
+export interface RingSummary {
+  ring_id: string;
+  n_buyers: number;
+  n_devices: number;
+  n_orders: number;
+  ring_risk: number;
+  band: Band;
+  sample_devices: string[];
+}
+export interface RingValidation {
+  precision: number;
+  recall: number;
+  tp: number;
+  fp: number;
+  fn: number;
+  n_rings: number;
+  n_flagged_buyers: number;
+}
+export interface RingsResponse {
+  validation: RingValidation;
+  rings: RingSummary[];
+}
+export interface RingNode {
+  id: string;
+  label: string;
+  kind: "buyer" | "device";
+}
+export interface RingGraphData {
+  ring_id: string;
+  ring_risk: number;
+  band: Band;
+  n_buyers: number;
+  n_devices: number;
+  nodes: RingNode[];
+  links: { source: string; target: string }[];
+}
+
 export interface AuditRow {
   id: number;
   order_id: string;
@@ -151,6 +188,8 @@ export const api = {
   metrics: () => get<Metrics>(`/metrics`),
   costcurve: () => get<CostCurve>(`/costcurve`),
   leakage: () => get<Leakage>(`/leakage`),
+  rings: () => get<RingsResponse>(`/rings`),
+  ringGraph: (id: string) => get<RingGraphData>(`/rings/${id}`),
   health: () => get<{ status: string }>(`/`),
 };
 

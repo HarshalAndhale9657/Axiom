@@ -89,3 +89,16 @@ def costcurve() -> dict:
 @app.get("/leakage")
 def leakage() -> dict:
     return get_engine().leakage_report()
+
+
+@app.get("/rings")
+def rings() -> dict:
+    return get_engine().rings()
+
+
+@app.get("/rings/{ring_id}")
+def ring_graph(ring_id: str) -> dict:
+    try:
+        return get_engine().ring_graph(ring_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="ring not found")

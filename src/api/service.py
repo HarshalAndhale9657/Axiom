@@ -46,6 +46,8 @@ class RiskEngine:
                  data_path: str = "data/cod_orders.csv", model_dir: str = "models",
                  audit_path: str = "audit.sqlite", provider=None, queue_limit: int = 200) -> None:
         self.orders_raw = orders if orders is not None else pd.read_csv(data_path)
+        self._latents_path = (str(Path(data_path).with_name(Path(data_path).stem + "_latents.csv"))
+                              if orders is None else None)
         self.bundle = build_features(self.orders_raw)
         self.feature_cols = self.bundle.feature_columns
         self.model = load(model_dir)["model"]
@@ -199,3 +201,27 @@ class RiskEngine:
                   "prevalence": round(float(ly.mean()), 4)}
         self._leakage = {"honest": honest, "leaky": leaked}
         return self._leakage
+
+    def rings(self) -> dict:
+        """Unsupervised fraud rings (shared-device graph) + honest validation vs the hidden flag."""
+        if getattr(self, "_rings_cache", None):
+            return self._rings_cache
+        from src.graph.rings import find_rings, validate
+
+        ring_objs = find_rings(self.orders_raw, min_size=3)
+        self._rings_by_id = {r.ring_id: r for r in ring_objs}
+        val: dict = {}
+        if self._latents_path and Path(self._latents_path).exists():
+            latents = pd.read_csv(self._latents_path)
+            val = validate(self.orders_raw, latents, ring_objs)
+        self._rings_cache = {"validation": val, "rings": [r.summary() for r in ring_objs[:40]]}
+        return self._rings_cache
+
+    def ring_graph(self, ring_id: str) -> dict:
+        from src.graph.rings import ring_graph_payload
+
+        self.rings()
+        ring = getattr(self, "_rings_by_id", {}).get(ring_id)
+        if ring is None:
+            raise KeyError(ring_id)
+        return ring_graph_payload(self.orders_raw, ring)
