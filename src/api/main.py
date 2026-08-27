@@ -37,6 +37,10 @@ class OverrideBody(BaseModel):
     reason: str
 
 
+class ExecuteBody(BaseModel):
+    action: str | None = None
+
+
 @app.get("/")
 def health() -> dict:
     return {"service": "axiom", "status": "ok"}
@@ -59,6 +63,14 @@ def order_detail(order_id: str) -> dict:
 def order_investigate(order_id: str) -> dict:
     try:
         return get_engine().investigate(order_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="order not found")
+
+
+@app.post("/orders/{order_id}/execute")
+def execute(order_id: str, body: ExecuteBody) -> dict:
+    try:
+        return get_engine().execute(order_id, body.action)
     except KeyError:
         raise HTTPException(status_code=404, detail="order not found")
 

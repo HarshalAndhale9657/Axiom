@@ -113,6 +113,19 @@ export interface Leakage {
   leaky: LeakageMetrics;
 }
 
+export interface ExecuteResult {
+  executed: boolean;
+  action?: string;
+  message?: string;
+  simulated?: boolean;
+  short_url?: string;
+  plink_id?: string;
+  status?: string;
+  amount_inr?: number;
+  deposit_inr?: number | null;
+  decision_id?: number;
+}
+
 export interface RingSummary {
   ring_id: string;
   n_buyers: number;
@@ -182,6 +195,7 @@ export const api = {
   orders: (limit = 60) => get<QueueRow[]>(`/orders?limit=${limit}`),
   detail: (id: string) => get<CaseDetail>(`/orders/${id}`),
   investigate: (id: string) => post<AgentResult>(`/orders/${id}/investigate`),
+  execute: (id: string, action: string) => post<ExecuteResult>(`/orders/${id}/execute`, { action }),
   override: (decisionId: number, body: { reviewer: string; to_action: string; reason: string }) =>
     post<Record<string, unknown>>(`/decisions/${decisionId}/override`, body),
   audit: (limit = 40) => get<AuditRow[]>(`/audit?limit=${limit}`),

@@ -36,8 +36,10 @@ Thumbs.db
 .vscode/
 .idea/
 
-# Personal scratch notes (kept locally, not in the public repo)
+# Personal scratch notes / raw secrets (kept locally, NEVER in the repo)
 /Hackathon info.txt
+/keys
+/keys.txt
 
 # Regenerable evaluation figures (final ones committed deliberately under docs/)
 /reports/

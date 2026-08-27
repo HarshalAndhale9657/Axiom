@@ -64,3 +64,17 @@ def test_metrics_has_money_story(engine):
     m = engine.metrics()
     assert "pr_auc" in m and "money" in m
     assert m["money"]["model_cost_per_1k"] > 0
+
+
+def test_execute_payment_action_is_audited(engine):
+    oid = engine.queue_view(limit=5)[0]["order_id"]
+    res = engine.execute(oid, action="convert_cod_to_prepaid")
+    assert res["executed"] is True
+    assert res["short_url"].startswith("https://rzp.io/")
+    assert any(d["id"] == res["decision_id"] for d in engine.audit_log(limit=8))
+
+
+def test_execute_non_payment_action_stays_in_platform(engine):
+    oid = engine.queue_view(limit=5)[0]["order_id"]
+    res = engine.execute(oid, action="approve")
+    assert res["executed"] is False

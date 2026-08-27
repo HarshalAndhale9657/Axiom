@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Bot, CheckCircle2, FileSearch, Gavel, ScrollText, Sparkles } from "lucide-react";
-import { api, type AgentResult, type CaseDetail as Detail, type Factor } from "@/lib/api";
+import { Bot, CheckCircle2, ExternalLink, FileSearch, Gavel, ScrollText, Sparkles, Zap } from "lucide-react";
+import { api, type AgentResult, type CaseDetail as Detail, type ExecuteResult, type Factor } from "@/lib/api";
 import { actionLabel, bandTheme, inr, pct } from "@/lib/format";
 import { BandPill, Button, ConfidenceBar, Card, KeyVal, Skeleton, Spinner } from "@/components/ui";
 
@@ -56,9 +56,11 @@ export default function CaseDetail({
   const [ovReason, setOvReason] = useState("");
   const [ovDone, setOvDone] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [execRes, setExecRes] = useState<ExecuteResult | null>(null);
+  const [executing, setExecuting] = useState(false);
 
   useEffect(() => {
-    setAgent(null); setOvDone(null); setOvReason(""); setOvAction("approve");
+    setAgent(null); setOvDone(null); setOvReason(""); setOvAction("approve"); setExecRes(null);
   }, [detail?.order_id]);
 
   // Demo auto-run: investigate, then override.
@@ -98,6 +100,9 @@ export default function CaseDetail({
   const d = detail.decision;
   const t = bandTheme[d.band];
   const maxShap = Math.max(...d.top_factors.map((f) => Math.abs(f.shap)), 0.01);
+  const PAY_ACTIONS = ["convert_cod_to_prepaid", "part_pay_cod"];
+  const execAction = agent && PAY_ACTIONS.includes(agent.action) ? agent.action
+    : PAY_ACTIONS.includes(d.action) ? d.action : null;
 
   async function runAgent() {
     if (!detail) return;
@@ -112,6 +117,12 @@ export default function CaseDetail({
       await api.override(agent.decision_id, { reviewer: "analyst_1", to_action: ovAction, reason: ovReason || "manual review" });
       setOvDone(ovAction);
     } finally { setSaving(false); }
+  }
+  async function executeAction(action: string) {
+    if (!detail) return;
+    setExecuting(true);
+    try { setExecRes(await api.execute(detail.order_id, action)); }
+    finally { setExecuting(false); }
   }
 
   return (
@@ -151,6 +162,45 @@ export default function CaseDetail({
             )}
           </div>
         </Card>
+
+        {execAction && (
+          <Card>
+            <div className="p-4">
+              <div className="mb-1 flex items-center gap-2">
+                <Zap className="h-4 w-4 text-blue-500" />
+                <h3 className="text-sm font-semibold text-ink">Execute the action — on Razorpay</h3>
+              </div>
+              {execRes && execRes.executed ? (
+                <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-ink">{actionLabel(execRes.action || execAction)}</span>
+                    <span className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${execRes.simulated ? "bg-surface2 text-muted" : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"}`}>
+                      {execRes.simulated ? "simulated (offline)" : "REAL Razorpay test-mode"}
+                    </span>
+                  </div>
+                  <a href={execRes.short_url} target="_blank" rel="noreferrer"
+                    className="mt-2 inline-flex items-center gap-1.5 break-all text-sm font-medium text-blue-600 hover:underline dark:text-blue-400">
+                    <ExternalLink className="h-3.5 w-3.5 shrink-0" /> {execRes.short_url}
+                  </a>
+                  <div className="mt-1 font-mono text-[10px] text-faint">
+                    {execRes.plink_id} · {execRes.status}
+                    {execRes.deposit_inr ? ` · deposit ${inr(execRes.deposit_inr)}` : ""}
+                  </div>
+                  <p className="mt-1 text-[11px] text-faint">Real Razorpay test-mode link — no real money moves.</p>
+                </div>
+              ) : (
+                <>
+                  <p className="mb-2 text-xs text-muted">
+                    Create a real Razorpay <b className="text-ink">test-mode</b> payment link for this bounded action.
+                  </p>
+                  <Button onClick={() => executeAction(execAction)} disabled={executing}>
+                    {executing ? <><Spinner /> Creating link…</> : <><Zap className="h-4 w-4" /> Execute on Razorpay (test)</>}
+                  </Button>
+                </>
+              )}
+            </div>
+          </Card>
+        )}
 
         <Card>
           <div className="p-4">

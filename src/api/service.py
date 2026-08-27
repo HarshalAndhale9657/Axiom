@@ -135,6 +135,31 @@ class RiskEngine:
             source=dec.source, model_version=self.model_version, detail=dec.as_dict())
         return {"decision_id": decision_id, **dec.as_dict()}
 
+    def execute(self, order_id: str, action: str | None = None) -> dict:
+        """Run the bounded action for REAL (Razorpay test-mode link) and audit it."""
+        from src.actions.razorpay_actuator import create_partial_link, create_prepaid_link
+
+        i = self._locate(order_id)
+        row = self.queue.iloc[i]
+        core = self._core(i)
+        action = action or core.action
+        amount = float(row["order_value"])
+        score = float(self._proba[i])
+        if action == "convert_cod_to_prepaid":
+            res = create_prepaid_link(str(row["order_id"]), amount, core.band, score)
+        elif action == "part_pay_cod":
+            deposit = min(amount, max(50.0, float(self.cost.c_fn(np.array([amount]))[0]) * score))
+            res = create_partial_link(str(row["order_id"]), amount, deposit, core.band, score)
+        else:
+            return {"executed": False, "action": action,
+                    "message": "This action stays in-platform (no external payment link)."}
+        decision_id = self.audit.log_decision(
+            order_id=str(row["order_id"]), risk_score=score, anomaly_score=float(self._anom[i]),
+            band=core.band, action=action, reason="Executed via Razorpay test-mode",
+            confidence=core.confidence, requires_human=False, source="actuator",
+            model_version=self.model_version, detail={"actuation": res})
+        return {"executed": True, "decision_id": decision_id, **res}
+
     def override(self, decision_id: int, reviewer: str, to_action: str, reason: str) -> dict:
         """Human-in-the-loop override — logged as a new immutable row (before/after preserved)."""
         decision = self.audit.get_decision(decision_id)
