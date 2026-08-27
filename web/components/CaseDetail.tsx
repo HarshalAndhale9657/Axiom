@@ -155,7 +155,7 @@ export default function CaseDetail({
         <Card>
           <div className="p-4">
             <div className="mb-2 flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-indigo-500" />
+              <Sparkles className="h-4 w-4 text-blue-500" />
               <h3 className="text-sm font-semibold text-ink">Why — top risk drivers (SHAP)</h3>
             </div>
             {d.top_factors.map((f) => <FactorBar key={f.feature} f={f} max={maxShap} />)}
@@ -180,7 +180,7 @@ export default function CaseDetail({
           <div className="p-4">
             <div className="mb-2 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Bot className="h-4 w-4 text-indigo-500" />
+                <Bot className="h-4 w-4 text-blue-500" />
                 <h3 className="text-sm font-semibold text-ink">Agent investigation</h3>
               </div>
               <Button onClick={runAgent} disabled={investigating} variant={agent ? "ghost" : "primary"}>
@@ -195,10 +195,10 @@ export default function CaseDetail({
 
             {agent && (
               <div className="animate-in space-y-3">
-                <div className="rounded-xl border border-indigo-500/20 bg-indigo-500/5 p-3">
+                <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-lg font-semibold text-indigo-500">{actionLabel(agent.action)}</span>
-                    <span className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${agent.source === "llm" ? "bg-indigo-500/15 text-indigo-500" : "bg-surface2 text-muted"}`}>
+                    <span className="text-lg font-semibold text-blue-500">{actionLabel(agent.action)}</span>
+                    <span className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${agent.source === "llm" ? "bg-blue-500/15 text-blue-500" : "bg-surface2 text-muted"}`}>
                       {agent.source === "llm" ? "Gemini agent" : "Rule fallback"}
                     </span>
                   </div>
@@ -216,7 +216,7 @@ export default function CaseDetail({
                   <div className="grid grid-cols-2 gap-2">
                     {agent.evidence.map((e) => (
                       <div key={e.tool} className="rounded-lg border border-line bg-surface p-2">
-                        <div className="font-mono text-[10px] text-indigo-500">{e.tool}</div>
+                        <div className="font-mono text-[10px] text-blue-500">{e.tool}</div>
                         <div className="mt-0.5 space-y-0.5">
                           {Object.entries(e.output).map(([k, v]) => (
                             <div key={k} className="flex justify-between gap-2 text-[11px]">

@@ -33,7 +33,7 @@ export default function CostEconomics() {
             <h3 className="text-sm font-semibold text-ink">BMR cost curve</h3>
             <p className="mb-3 text-xs text-muted">
               Total business cost (₹ per 1,000 orders) vs decision threshold. The cost-optimal
-              <b className="text-indigo-500"> τ* = {data ? data.tau_star.toFixed(2) : "…"}</b> sits far below the naive 0.50.
+              <b className="text-blue-500"> τ* = {data ? data.tau_star.toFixed(2) : "…"}</b> sits far below the naive 0.50.
             </p>
             <div className="h-72 w-full">
               {!data ? (
@@ -53,9 +53,9 @@ export default function CostEconomics() {
                     <ReferenceLine y={Math.round(per1k(data.block_all_cod_cost))} stroke="#fb7185" strokeDasharray="4 4"
                       label={{ value: "block-all-COD", position: "insideTopRight", fontSize: 10, fill: "#fb7185" }} />
                     <ReferenceLine x={0.5} stroke="var(--faint)" label={{ value: "naive 0.5", position: "top", fontSize: 10, fill: "var(--faint)" }} />
-                    <ReferenceLine x={data.tau_star} stroke="#6366f1" strokeDasharray="5 3" label={{ value: "τ*", position: "top", fontSize: 11, fill: "#6366f1" }} />
+                    <ReferenceLine x={data.tau_star} stroke="#3b82f6" strokeDasharray="5 3" label={{ value: "τ*", position: "top", fontSize: 11, fill: "#3b82f6" }} />
                     <ReferenceLine x={tau} stroke="var(--ink)" />
-                    <Line type="monotone" dataKey="cost" stroke="#6366f1" strokeWidth={2.5} dot={false} isAnimationActive={false} />
+                    <Line type="monotone" dataKey="cost" stroke="#3b82f6" strokeWidth={2.5} dot={false} isAnimationActive={false} />
                   </LineChart>
                 </ResponsiveContainer>
               )}

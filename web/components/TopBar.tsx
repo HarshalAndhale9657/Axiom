@@ -28,13 +28,13 @@ export default function TopBar({
       <div className="mx-auto max-w-[1400px] px-6 py-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-500/20 ring-1 ring-indigo-400/30">
-              <ShieldCheck className="h-6 w-6 text-indigo-300" />
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/20 ring-1 ring-blue-400/30">
+              <ShieldCheck className="h-6 w-6 text-blue-300" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-semibold tracking-tight text-white">Axiom</h1>
-                <span className="rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] font-medium text-indigo-200 ring-1 ring-white/15">
+                <span className="rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-200 ring-1 ring-white/15">
                   AI Risk Manager
                 </span>
               </div>
@@ -50,7 +50,7 @@ export default function TopBar({
               className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium ring-1 transition ${
                 demoRunning
                   ? "bg-rose-500/20 text-rose-200 ring-rose-400/30 hover:bg-rose-500/30"
-                  : "bg-indigo-500/20 text-indigo-100 ring-indigo-400/30 hover:bg-indigo-500/30"
+                  : "bg-blue-500/20 text-blue-100 ring-blue-400/30 hover:bg-blue-500/30"
               }`}
             >
               {demoRunning ? <><Square className="h-4 w-4" /> Stop</> : <><Play className="h-4 w-4" /> Play demo</>}

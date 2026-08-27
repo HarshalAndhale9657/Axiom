@@ -93,7 +93,7 @@ export default function Page() {
                   key={tb.key}
                   onClick={() => setTab(tb.key)}
                   className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition ${
-                    tab === tb.key ? "bg-indigo-600 text-white" : "text-muted hover:bg-surface2"
+                    tab === tb.key ? "bg-blue-600 text-white" : "text-muted hover:bg-surface2"
                   }`}
                 >
                   {tb.icon} {tb.label}

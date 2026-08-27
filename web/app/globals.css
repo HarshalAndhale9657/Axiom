@@ -1,24 +1,26 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Light — cool near-white neutrals (pair with a blue accent), deep-navy ink. */
 :root {
-  --app: #f4f6fa;
+  --app: #f6f8fc;
   --surface: #ffffff;
-  --surface2: #f1f5f9;
-  --line: #e6e9f0;
-  --ink: #0f172a;
-  --muted: #5b6b83;
-  --faint: #94a3b8;
+  --surface2: #eef2f8;
+  --line: #e1e7f0;
+  --ink: #0d1526;
+  --muted: #54607a;
+  --faint: #8794aa;
 }
 
+/* Dark — elevated, slightly blue-tinted neutrals (GitHub/Radix style), not pure black. */
 .dark {
-  --app: #0c0f16;
-  --surface: #131721;
-  --surface2: #1a1f2b;
-  --line: #272d3a;
-  --ink: #e6e9ef;
-  --muted: #97a1b2;
-  --faint: #667083;
+  --app: #0a0e16;
+  --surface: #111722;
+  --surface2: #19212f;
+  --line: #273143;
+  --ink: #e9edf4;
+  --muted: #9aa5b8;
+  --faint: #647085;
 }
 
 @theme inline {
@@ -113,8 +115,8 @@ input[type="range"].axiom-range::-webkit-slider-thumb {
   width: 18px;
   height: 18px;
   border-radius: 9999px;
-  background: #6366f1;
+  background: #2563eb;
   border: 3px solid var(--surface);
-  box-shadow: 0 1px 6px rgba(79, 70, 229, 0.45);
+  box-shadow: 0 1px 6px rgba(37, 99, 235, 0.4);
   cursor: pointer;
 }

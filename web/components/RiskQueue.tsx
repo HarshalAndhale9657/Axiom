@@ -39,7 +39,7 @@ export default function RiskQueue({
             key={f.key}
             onClick={() => setFilter(f.key)}
             className={`rounded-lg px-2.5 py-1 text-xs font-medium transition ${
-              filter === f.key ? "bg-indigo-600 text-white" : "bg-surface2 text-muted hover:text-ink"
+              filter === f.key ? "bg-blue-600 text-white" : "bg-surface2 text-muted hover:text-ink"
             }`}
           >
             {f.label} <span className="opacity-60">{counts[f.key]}</span>
@@ -58,7 +58,7 @@ export default function RiskQueue({
                   onClick={() => onSelect(o.order_id)}
                   className={`mb-1 w-full rounded-xl border px-3 py-2.5 text-left transition ${
                     active
-                      ? "border-indigo-400/40 bg-indigo-500/10 ring-1 ring-indigo-400/30"
+                      ? "border-blue-400/40 bg-blue-500/10 ring-1 ring-blue-400/30"
                       : "border-transparent hover:bg-surface2"
                   }`}
                 >

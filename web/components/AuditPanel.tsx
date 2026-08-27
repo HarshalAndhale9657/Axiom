@@ -9,7 +9,7 @@ import { BandPill, Button, Card, Skeleton } from "@/components/ui";
 function SummaryChip({ icon, label, value }: { icon: ReactNode; label: string; value: string | number }) {
   return (
     <div className="flex items-center gap-3 rounded-xl border border-line bg-surface2 px-4 py-2.5">
-      <span className="text-indigo-500">{icon}</span>
+      <span className="text-blue-500">{icon}</span>
       <div>
         <div className="text-[10px] font-medium uppercase tracking-wide text-faint">{label}</div>
         <div className="text-lg font-semibold text-ink">{value}</div>
@@ -81,7 +81,7 @@ export default function AuditPanel() {
                     <div className="max-w-xs truncate text-[11px] text-faint" title={r.reason}>{r.reason}</div>
                   </td>
                   <td className="px-3 py-2.5">
-                    <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium ${r.source === "llm" ? "bg-indigo-500/10 text-indigo-500" : "bg-surface2 text-muted"}`}>
+                    <span className={`rounded-md px-1.5 py-0.5 text-[10px] font-medium ${r.source === "llm" ? "bg-blue-500/10 text-blue-500" : "bg-surface2 text-muted"}`}>
                       {r.source === "llm" ? "Gemini" : "rules"}
                     </span>
                   </td>

@@ -15,7 +15,7 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
 
 type Variant = "primary" | "ghost" | "subtle" | "danger";
 const variants: Record<Variant, string> = {
-  primary: "bg-indigo-600 text-white hover:bg-indigo-500 shadow-sm shadow-indigo-600/25",
+  primary: "bg-blue-600 text-white hover:bg-blue-500 shadow-sm shadow-blue-600/25",
   ghost: "bg-surface text-ink border border-line hover:bg-surface2",
   subtle: "bg-surface2 text-ink hover:brightness-95 dark:hover:brightness-125",
   danger: "bg-rose-600 text-white hover:bg-rose-500",
@@ -70,7 +70,7 @@ export function ConfidenceBar({ value }: { value: number }) {
   return (
     <div className="flex items-center gap-2">
       <div className="h-1.5 w-24 overflow-hidden rounded-full bg-surface2">
-        <div className="h-full rounded-full bg-indigo-500 transition-all duration-700" style={{ width: `${value * 100}%` }} />
+        <div className="h-full rounded-full bg-blue-500 transition-all duration-700" style={{ width: `${value * 100}%` }} />
       </div>
       <span className="text-xs font-medium text-muted">{Math.round(value * 100)}%</span>
     </div>
