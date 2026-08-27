@@ -56,6 +56,7 @@ export interface Verification {
   confidence: number;
   reason: string;
   verifier: string;
+  independent?: boolean;
 }
 
 export interface AgentResult {
@@ -134,6 +135,43 @@ export interface ExecuteResult {
   decision_id?: number;
 }
 
+export interface BatchAction {
+  order_id: string;
+  action: string;
+  order_value: number;
+  is_rto: number;
+  intervened: boolean;
+  recovered: number;
+  friction_cost: number;
+  source: "llm" | "fallback";
+  decision_id: number;
+}
+export interface BatchResult {
+  stopped: boolean;
+  stop_reason: string;
+  processed: number;
+  amber_seen: number;
+  interventions: number;
+  rto_caught: number;
+  good_frictioned: number;
+  rto_missed: number;
+  recovered_gross: number;
+  friction_cost: number;
+  net_recovered: number;
+  missed_cost: number;
+  actions: BatchAction[];
+  basis: string;
+}
+export interface BatchOptions {
+  max_orders?: number;
+  budget_calls?: number;
+  stop_after_low_value?: number;
+  low_value_threshold?: number;
+  quiet_hours?: [number, number] | null;
+  scan_limit?: number;
+  now_hour?: number;
+}
+
 export interface RingSummary {
   ring_id: string;
   n_buyers: number;
@@ -203,6 +241,7 @@ export const api = {
   orders: (limit = 60) => get<QueueRow[]>(`/orders?limit=${limit}`),
   detail: (id: string) => get<CaseDetail>(`/orders/${id}`),
   investigate: (id: string) => post<AgentResult>(`/orders/${id}/investigate`),
+  runBatch: (opts: BatchOptions = {}) => post<BatchResult>(`/batch/run`, opts),
   execute: (id: string, action: string) => post<ExecuteResult>(`/orders/${id}/execute`, { action }),
   override: (decisionId: number, body: { reviewer: string; to_action: string; reason: string }) =>
     post<Record<string, unknown>>(`/decisions/${decisionId}/override`, body),

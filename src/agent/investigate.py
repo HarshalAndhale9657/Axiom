@@ -118,20 +118,32 @@ def _fallback(ctx: OrderContext, calls: list[ToolCall], snippets: list[str],
                          d.policy_citations, calls, snippets, "fallback")
 
 
-def _attach_verification(dec: AgentDecision, ctx: OrderContext, verifier) -> None:
-    """Run the independent cross-vendor verifier and attach its verdict (veto -> human)."""
-    from src.agent.verify import get_verifier, verify_decision
+def _attach_verification(dec: AgentDecision, ctx: OrderContext, verifier,
+                         primary_provider: LLMProvider | None = None) -> None:
+    """Run the cross-vendor verifier and attach its verdict (veto -> human).
+
+    Honesty: we compare the vendor that actually served the primary decision against the
+    verifier's vendor and mark ``independent`` accordingly — so we never claim cross-vendor
+    independence when a fail-over made both the same vendor.
+    """
+    from src.agent.llm import provider_vendor
+    from src.agent.verify import get_verifier, verifier_vendor_key, verify_decision
 
     if verifier == "auto":
         prov, label = get_verifier()
+        v_vendor = verifier_vendor_key()
     elif verifier is None:
         prov, label = None, None
+        v_vendor = "none"
     else:
         prov, label = verifier, "verifier"
+        v_vendor = provider_vendor(verifier)
     if prov is None:
         return
     verdict = verify_decision(dec, ctx, provider=prov, vendor_label=label)
     if verdict:
+        p_vendor = provider_vendor(primary_provider) if primary_provider is not None else "unknown"
+        verdict["independent"] = bool(p_vendor not in (v_vendor, "unknown"))
         dec.verification = verdict
         if verdict["verdict"] == "veto":
             dec.requires_human = True
@@ -161,5 +173,5 @@ def investigate(ctx: OrderContext, retriever: PolicyRetriever, *,
                                 calls, snippets, "llm")
     except (LLMError, json.JSONDecodeError, KeyError, TypeError, ValueError):
         dec = _fallback(ctx, calls, snippets, config)
-    _attach_verification(dec, ctx, verifier)
+    _attach_verification(dec, ctx, verifier, primary_provider=prov)
     return dec

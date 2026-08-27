@@ -5,6 +5,7 @@ Endpoints (all read the held-out test split as the live order queue):
     GET  /orders?limit=                 the risk queue (fast core decisions)
     GET  /orders/{id}                   full case detail (score + SHAP + decision)
     POST /orders/{id}/investigate       run the bounded agent (LLM), persist to audit
+    POST /batch/run                     autonomous batch over the amber queue (honest ₹ recovered)
     POST /decisions/{id}/override       human-in-the-loop override (immutable)
     GET  /audit?limit=                  the immutable audit trail
     GET  /metrics                       honest BMR cost-story numbers
@@ -41,6 +42,16 @@ class ExecuteBody(BaseModel):
     action: str | None = None
 
 
+class BatchBody(BaseModel):
+    max_orders: int | None = None
+    budget_calls: int | None = None
+    stop_after_low_value: int | None = None
+    low_value_threshold: float | None = None
+    quiet_hours: tuple[int, int] | None = None
+    scan_limit: int | None = None
+    now_hour: int | None = None  # override local hour (demo); else the server clock is used
+
+
 @app.get("/")
 def health() -> dict:
     return {"service": "axiom", "status": "ok"}
@@ -73,6 +84,25 @@ def execute(order_id: str, body: ExecuteBody) -> dict:
         return get_engine().execute(order_id, body.action)
     except KeyError:
         raise HTTPException(status_code=404, detail="order not found")
+
+
+@app.post("/batch/run")
+def batch_run(body: BatchBody | None = None) -> dict:
+    import datetime
+
+    from src.agent.batch import BatchConfig
+
+    body = body or BatchBody()
+    d = BatchConfig()
+    cfg = BatchConfig(
+        max_orders=body.max_orders or d.max_orders,
+        budget_calls=body.budget_calls or d.budget_calls,
+        stop_after_low_value=body.stop_after_low_value or d.stop_after_low_value,
+        low_value_threshold=body.low_value_threshold or d.low_value_threshold,
+        quiet_hours=body.quiet_hours if body.quiet_hours is not None else d.quiet_hours,
+    )
+    now_hour = body.now_hour if body.now_hour is not None else datetime.datetime.now().hour
+    return get_engine().run_batch(cfg, now_hour=now_hour, scan_limit=body.scan_limit)
 
 
 @app.post("/decisions/{decision_id}/override")

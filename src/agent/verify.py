@@ -45,6 +45,13 @@ def get_verifier() -> tuple[LLMProvider | None, str | None]:
     return None, None
 
 
+def verifier_vendor_key() -> str:
+    """Vendor key of the configured verifier ('openai' | 'google' | 'none') — for honesty checks."""
+    load_env()
+    name = os.environ.get("AXIOM_VERIFIER_PROVIDER", "none").lower()
+    return {"gemini": "google", "openai": "openai"}.get(name, name)
+
+
 def _prompt(decision, ctx) -> str:
     lines = [
         f"Primary agent reviewed borderline COD order {ctx.order_id} "

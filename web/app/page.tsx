@@ -1,19 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { AlertTriangle, LineChart as LineChartIcon, ListChecks, Network, ScrollText } from "lucide-react";
+import { AlertTriangle, Bot, LineChart as LineChartIcon, ListChecks, Network, ScrollText } from "lucide-react";
 import { api, API_BASE, type CaseDetail as Detail, type Metrics, type QueueRow } from "@/lib/api";
 import TopBar from "@/components/TopBar";
 import RiskQueue from "@/components/RiskQueue";
 import CaseDetail from "@/components/CaseDetail";
+import BatchPanel from "@/components/BatchPanel";
 import CostEconomics from "@/components/CostEconomics";
 import RingsPanel from "@/components/RingsPanel";
 import AuditPanel from "@/components/AuditPanel";
 import { Card } from "@/components/ui";
 
-type Tab = "queue" | "economics" | "rings" | "audit";
+type Tab = "queue" | "batch" | "economics" | "rings" | "audit";
 const TABS: { key: Tab; label: string; icon: ReactNode }[] = [
   { key: "queue", label: "Risk Queue", icon: <ListChecks className="h-4 w-4" /> },
+  { key: "batch", label: "Batch", icon: <Bot className="h-4 w-4" /> },
   { key: "economics", label: "Economics", icon: <LineChartIcon className="h-4 w-4" /> },
   { key: "rings", label: "Fraud Rings", icon: <Network className="h-4 w-4" /> },
   { key: "audit", label: "Audit Trail", icon: <ScrollText className="h-4 w-4" /> },
@@ -114,6 +116,7 @@ export default function Page() {
               </div>
             )}
 
+            {tab === "batch" && <BatchPanel />}
             {tab === "economics" && <CostEconomics />}
             {tab === "rings" && <RingsPanel />}
             {tab === "audit" && <AuditPanel />}

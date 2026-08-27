@@ -135,8 +135,42 @@ class OpenAIProvider:
             raise LLMError(f"OpenAI error: {str(exc)[:200]}") from exc
 
 
+class FallbackProvider:
+    """Try providers in order; on any :class:`LLMError` fall through to the next.
+
+    This is the provider-agnostic resilience story made real: Gemini on the free tier, with an
+    automatic fail-over to OpenAI when the free quota is exhausted (HTTP 429) so the agent keeps
+    reasoning at near-zero marginal cost. ``last_vendor`` records which vendor actually served —
+    so downstream honesty (e.g. the cross-vendor verifier) can tell if independence still holds.
+    """
+
+    def __init__(self, providers: list[tuple[str, LLMProvider]]) -> None:
+        if not providers:
+            raise LLMError("FallbackProvider needs at least one provider")
+        self.providers = providers
+        self.last_vendor: str | None = None
+
+    def generate(self, prompt: str, *, system: str | None = None, temperature: float = 0.0,
+                 max_output_tokens: int = 256, thinking_budget: int | None = 0,
+                 response_schema: dict | None = None) -> str:
+        errors = []
+        for vendor, prov in self.providers:
+            try:
+                out = prov.generate(prompt, system=system, temperature=temperature,
+                                    max_output_tokens=max_output_tokens,
+                                    thinking_budget=thinking_budget, response_schema=response_schema)
+                self.last_vendor = vendor
+                return out
+            except LLMError as exc:
+                errors.append(f"{vendor}: {str(exc)[:80]}")
+        raise LLMError("all providers failed -> " + " | ".join(errors))
+
+
 def get_provider(name: str | None = None) -> LLMProvider:
-    """Factory driven by ``AXIOM_LLM_PROVIDER`` (default 'gemini'). 'mock' for tests."""
+    """Factory driven by ``AXIOM_LLM_PROVIDER`` (default 'gemini'). 'mock' for tests.
+
+    'auto' builds a Gemini->OpenAI fail-over chain from whichever keys are present.
+    """
     load_env()
     name = (name or os.environ.get("AXIOM_LLM_PROVIDER", "gemini")).lower()
     if name == "gemini":
@@ -145,4 +179,24 @@ def get_provider(name: str | None = None) -> LLMProvider:
         return OpenAIProvider()
     if name == "mock":
         return MockProvider()
-    raise LLMError(f"unknown LLM provider {name!r} (supported: gemini, openai, mock)")
+    if name == "auto":
+        chain: list[tuple[str, LLMProvider]] = []
+        if os.environ.get("GEMINI_API_KEY"):
+            chain.append(("google", GeminiProvider()))
+        if os.environ.get("OPENAI_API_KEY"):
+            chain.append(("openai", OpenAIProvider()))
+        if not chain:
+            raise LLMError("auto provider needs GEMINI_API_KEY and/or OPENAI_API_KEY")
+        return FallbackProvider(chain)
+    raise LLMError(f"unknown LLM provider {name!r} (supported: gemini, openai, auto, mock)")
+
+
+def provider_vendor(prov: LLMProvider) -> str:
+    """The vendor key that served the last call — for honest same/cross-vendor labelling."""
+    if isinstance(prov, FallbackProvider):
+        return prov.last_vendor or "unknown"
+    if isinstance(prov, GeminiProvider):
+        return "google"
+    if isinstance(prov, OpenAIProvider):
+        return "openai"
+    return "mock"

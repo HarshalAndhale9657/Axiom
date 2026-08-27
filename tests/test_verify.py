@@ -51,6 +51,19 @@ def test_investigate_veto_escalates_to_human():
     assert dec.requires_human is True
 
 
+def test_investigate_marks_same_vendor_not_independent():
+    # primary and verifier are both the (mock) vendor -> we must NOT claim independence
+    retr = PolicyRetriever()
+    primary = MockProvider(canned=json.dumps(
+        {"action": "step_up_verification", "confidence": 0.7, "requires_human": False,
+         "rationale": "verify", "policy_citations": []}))
+    agreeing = MockProvider(canned=json.dumps(
+        {"verdict": "agree", "confidence": 0.8, "reason": "grounded"}))
+    dec = investigate(make_ctx(), retr, provider=primary, verifier=agreeing)
+    assert dec.verification is not None
+    assert dec.verification["independent"] is False
+
+
 def test_investigate_verifier_none_skips():
     retr = PolicyRetriever()
     dec = investigate(make_ctx(), retr, verifier=None, provider=MockProvider(canned=json.dumps(

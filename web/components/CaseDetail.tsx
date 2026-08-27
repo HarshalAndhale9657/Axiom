@@ -269,14 +269,16 @@ export default function CaseDetail({
                           ? <ShieldAlert className="h-4 w-4 text-amber-500" />
                           : <ShieldCheck className="h-4 w-4 text-emerald-500" />}
                         <span className="text-xs font-semibold text-ink">
-                          Independent verifier — {agent.verification.verdict === "veto" ? "vetoed" : "agrees"}
+                          {agent.verification.independent === false ? "Second-pass check" : "Independent verifier"} — {agent.verification.verdict === "veto" ? "vetoed" : "agrees"}
                         </span>
                       </div>
                       <span className="rounded-md bg-surface px-1.5 py-0.5 font-mono text-[10px] text-muted ring-1 ring-line">{agent.verification.verifier}</span>
                     </div>
                     <p className="mt-1.5 text-[13px] text-ink">{agent.verification.reason}</p>
                     <p className="mt-1 text-[11px] text-faint">
-                      A different-vendor model independently reviewed the same evidence &amp; policy · confidence {pct(agent.verification.confidence)}
+                      {agent.verification.independent === false
+                        ? "A same-vendor second pass reviewed the same evidence & policy"
+                        : "A different-vendor model independently reviewed the same evidence & policy"} · confidence {pct(agent.verification.confidence)}
                       {agent.verification.verdict === "veto" && " · routed to a human"}
                     </p>
                   </div>

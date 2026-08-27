@@ -2,6 +2,16 @@
 
 One entry per real choice: the decision, the rationale, and when to revisit. Newest first.
 
+## 2026-08-28 — Provider fail-over (Gemini→OpenAI) + honesty-tracked verifier independence
+**Decision:** Add a `FallbackProvider` and an `AXIOM_LLM_PROVIDER=auto` mode that tries **Gemini (free) first and fails over to OpenAI `gpt-4o-mini` on 429/quota exhaustion**. The cross-vendor verifier (C2) now records *which vendor actually served* the primary decision and only claims "independent" when the two vendors genuinely differ; a fail-over that makes both OpenAI is labelled "second-pass (same vendor)".
+**Why:** Autonomous batch mode fires the LLM many times in seconds and reliably trips Gemini's free-tier daily quota (observed HTTP 429). Graceful degradation to the deterministic core is honest but makes the flagship "agent" demo look rule-driven. Failing over to the already-provisioned OpenAI budget (~$0.001/batch) keeps the agent genuinely reasoning, while the vendor-tracking keeps the C2 independence claim truthful (the honesty rubric explicitly forbids overclaiming cross-vendor independence).
+**Revisit if:** we get higher Gemini quota or Anthropic credits — then make Claude the primary and Gemini/OpenAI the fallbacks; independence logic is already vendor-agnostic.
+
+## 2026-08-28 — Batch ₹-recovered reported as an honest 2×2 net, not a headline gross
+**Decision:** Autonomous batch mode reports **gross recovered − friction cost on genuine customers = net**, plus RTOs missed, all measured post-hoc on the labelled held-out test batch, with the modelling assumption ("an applied friction prevents that return") stated in the payload and UI.
+**Why:** A gross "₹ recovered" number alone is exactly the cherry-pick Track 2 penalizes. Showing the friction cost we impose on good customers (the false-positive side) is the same BMR discipline as the cost curve, and it's more persuasive precisely because it's not hiding the downside.
+**Revisit if:** we add per-action recovery factors (e.g. part-pay only de-risks the deposit) — keep the assumption line in sync.
+
 ## 2026-08-26 — Scope, product, and track
 **Decision:** Compete in **Track 2 (AI Risk Manager)**; focus on **RTO/COD fraud** (over card fraud or "both rails"); product name **Axiom**.
 **Why:** RTO/COD is Razorpay's most-talked-about India problem (Thirdwatch/RTO Shield), has the cleanest false-positive-cost story, and the best leakage-safe data path. Axiom = "a self-evident truth" — fits our honest-metrics edge; backronym: Agentic, eXplainable Intelligence for Order-risk Management; tagline "Risk decisions you can prove."

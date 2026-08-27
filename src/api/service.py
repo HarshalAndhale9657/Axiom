@@ -31,6 +31,10 @@ _ORDER_FIELDS = ["payment_method", "order_value", "product_category", "city", "c
                  "pincode", "distance_km", "address_text", "address_completeness",
                  "is_first_time_buyer", "account_age_days", "phone_verified"]
 
+# Disclosed with every batch result — the honest basis of the ₹ figures.
+_BATCH_BASIS = {"basis": ("Rupees measured on the labelled held-out test batch. Assumes an "
+                          "applied friction (verify / prepaid / part-pay) prevents that return.")}
+
 
 def _py(v):
     """numpy -> native python for JSON."""
@@ -134,6 +138,77 @@ class RiskEngine:
             reason=dec.rationale, confidence=dec.confidence, requires_human=dec.requires_human,
             source=dec.source, model_version=self.model_version, detail=dec.as_dict())
         return {"decision_id": decision_id, **dec.as_dict()}
+
+    def run_batch(self, config=None, *, now_hour: int | None = None,
+                  scan_limit: int | None = None) -> dict:
+        """Autonomously work the AMBER queue with real stopping rules; report honest ₹ economics.
+
+        Every processed order is audited. Rupees are measured post-hoc on the labelled held-out
+        test batch: gross recovered (prevented-RTO cost on interventions that would have RTO'd),
+        the friction cost incurred on genuine customers, and the resulting net.
+        """
+        from src.agent.batch import (BatchConfig, BatchState, in_quiet_hours, is_intervention,
+                                      recovered_and_cost, stop_reason, update_state)
+
+        config = config or BatchConfig()
+        zero = {"stopped": True, "processed": 0, "amber_seen": 0, "interventions": 0,
+                "rto_caught": 0, "good_frictioned": 0, "rto_missed": 0, "recovered_gross": 0,
+                "friction_cost": 0, "net_recovered": 0, "missed_cost": 0, "actions": []}
+        if in_quiet_hours(now_hour, config.quiet_hours):
+            return {**zero, "stop_reason": f"quiet hours {config.quiet_hours} — no run", **_BATCH_BASIS}
+
+        state = BatchState()
+        actions: list[dict] = []
+        recovered_gross = friction_cost = missed_cost = 0.0
+        rto_caught = good_frictioned = rto_missed = amber_seen = 0
+        scan = min(scan_limit or len(self.queue), len(self.queue))
+        reason = None
+        for i in range(scan):
+            if self._core(i).band != "amber":
+                continue
+            reason = stop_reason(state, config)
+            if reason:
+                break
+            amber_seen += 1
+            row = self.queue.iloc[i]
+            value, is_rto = float(row["order_value"]), int(row["is_rto"])
+            ctx = OrderContext.from_feature_row(row, float(self._proba[i]), float(self._anom[i]))
+            dec = run_investigation(ctx, self.retriever, provider=self.provider(),
+                                    config=self.config, verifier=None)  # autonomous throughput
+            c_fn = float(self.cost.c_fn(np.array([value]))[0])
+            c_fp = float(self.cost.c_fp(np.array([value]))[0])
+            rec, fcost = recovered_and_cost(dec.action, is_rto, c_fn, c_fp)
+            recovered_gross += rec
+            friction_cost += fcost
+            intervened = is_intervention(dec.action)
+            if intervened and is_rto:
+                rto_caught += 1
+            elif intervened:
+                good_frictioned += 1
+            elif is_rto:
+                rto_missed += 1
+                missed_cost += c_fn
+            decision_id = self.audit.log_decision(
+                order_id=str(row["order_id"]), risk_score=float(self._proba[i]),
+                anomaly_score=float(self._anom[i]), band="amber", action=dec.action,
+                reason=dec.rationale, confidence=dec.confidence,
+                requires_human=dec.requires_human, source=f"batch:{dec.source}",
+                model_version=self.model_version, detail=dec.as_dict())
+            actions.append({
+                "order_id": str(row["order_id"]), "action": dec.action, "order_value": round(value),
+                "is_rto": is_rto, "intervened": intervened, "recovered": round(rec),
+                "friction_cost": round(fcost), "source": dec.source, "decision_id": decision_id})
+            update_state(state, value, config)
+        reason = reason or stop_reason(state, config) or "scanned the entire queue"
+        gross, friction = round(recovered_gross), round(friction_cost)   # reconcile: net = gross - friction
+        return {
+            "stopped": True, "stop_reason": reason, "processed": state.processed,
+            "amber_seen": amber_seen, "interventions": rto_caught + good_frictioned,
+            "rto_caught": rto_caught, "good_frictioned": good_frictioned, "rto_missed": rto_missed,
+            "recovered_gross": gross, "friction_cost": friction,
+            "net_recovered": gross - friction, "missed_cost": round(missed_cost),
+            "actions": actions, **_BATCH_BASIS,
+        }
 
     def execute(self, order_id: str, action: str | None = None) -> dict:
         """Run the bounded action for REAL (Razorpay test-mode link) and audit it."""
