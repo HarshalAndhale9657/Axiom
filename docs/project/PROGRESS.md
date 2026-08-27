@@ -18,14 +18,15 @@
 - ✅ **P5a — deterministic decision core** (`src/rules/decision_core.py`): rules-before-banding, **closed bounded action space**, tiered dynamic friction, anomaly trip-wire, every action cites a policy clause. 11 tests.
 - ✅ **P6a — provider-agnostic LLM layer + grounded reason codes** (`src/agent/llm.py`, `src/agent/reason_code.py`): Gemini free-tier via lightweight REST (**key validated live**; thinking-budget fix for clean output), `MockProvider` for offline tests, grounded prompt that narrates only SHAP factors + policy (never invents) with a deterministic fallback. 4 tests + live-verified.
 - ✅ **P6b — bounded investigation agent + policy RAG** (`src/agent/investigate.py`, `src/agent/tools.py`, `src/rag/policy.py`): planner → typed tools → TF-IDF policy retrieval → **schema-constrained** LLM decision, validated to the closed action set with deterministic fallback. **Live-verified on Gemini** (real structured, policy-cited recommendation). 10 tests.
-- ⏭️ **NEXT:** FastAPI service (score → decide → investigate) + **SQLite immutable audit trail** (with HITL override) → Next.js dashboard → README + pitch
+- ✅ **P5b — FastAPI service + immutable audit trail + HITL** (`src/api/`, `src/audit/store.py`): RiskEngine orchestrates score → decide → investigate; SQLite audit is append-only (DB triggers block UPDATE/DELETE); human override logged with before/after. **Live HTTP smoke passed** (queue → detail → agent → override → audit → metrics). 9 tests.
+- ⏭️ **NEXT:** Next.js dashboard (queue → case detail → threshold slider → audit log) → README + architecture diagram → 5-min pitch video
 
 ## Phase checklist (compressed ~10-day plan)
 - [x] **P1 — Data:** causal synthetic COD generator + tests ✓ (real-pincode grounding + EDA notebook = next)
 - [ ] **P2 — Features:** leakage-safe pipeline (time split, OOF encoders) + baseline LightGBM
 - [x] **P3 — Model:** calibration + SHAP explanations + IsolationForest anomaly ✓
 - [x] **P4 — ★ Evaluation:** BMR rupee cost curve (τ\*), PR-AUC, precision@k, calibration, baseline comparisons ✓ (failure-mode matrix → in the eval notebook next)
-- [~] **P5 — Decision core + API:** rules/banding + tiered actions ✓ (11 tests); FastAPI + SQLite audit = next
+- [x] **P5 — Decision core + API + audit:** rules/banding/tiered actions + FastAPI service + immutable SQLite audit + HITL override ✓ (live HTTP smoke)
 - [x] **P6 — Agent:** LLM provider + grounded reason codes + bounded agent (typed tools + policy RAG + schema-constrained structured decision) ✓ (live Gemini); HITL override wired at the API next
 - [ ] **P7 — Dashboard:** order queue + case detail (score/SHAP/reason/agent trace/citations/action) + live threshold slider + audit view + override
 - [ ] **P8 — Ship:** golden-path integration + Dockerize + industry-grade README + architecture diagram + record demo + **5-min pitch video** + submit early
