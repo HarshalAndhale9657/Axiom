@@ -56,20 +56,23 @@ def total_cost(flag: np.ndarray, y: np.ndarray, order_value: np.ndarray,
 
 def cost_curve(y: np.ndarray, proba: np.ndarray, order_value: np.ndarray, cm: CostModel,
                n_grid: int = 199) -> pd.DataFrame:
-    """Sweep a global threshold; return cost + confusion + precision/recall per tau."""
+    """Sweep a global threshold; return ₹ cost, the confusion cells, and their rupee split."""
     y = np.asarray(y, dtype=bool)
+    order_value = np.asarray(order_value, dtype=float)
+    cfp, cfn = cm.c_fp(order_value), cm.c_fn(order_value)
     grid = np.linspace(0.005, 0.995, n_grid)
     rows = []
-    pos = y.sum()
+    pos = int(y.sum())
     for tau in grid:
         flag = proba >= tau
-        tp = int(np.sum(flag & y))
-        fp = int(np.sum(flag & ~y))
-        fn = int(np.sum(~flag & y))
+        fp_mask, fn_mask = flag & ~y, ~flag & y
+        tp, fp, fn = int(np.sum(flag & y)), int(fp_mask.sum()), int(fn_mask.sum())
+        tn = int(np.sum(~flag & ~y))
+        fp_cost, fn_cost = float(cfp[fp_mask].sum()), float(cfn[fn_mask].sum())
         rows.append({
-            "threshold": tau,
-            "cost": total_cost(flag, y, order_value, cm),
-            "tp": tp, "fp": fp, "fn": fn,
+            "threshold": tau, "cost": fp_cost + fn_cost,
+            "tp": tp, "fp": fp, "fn": fn, "tn": tn,
+            "fp_cost": fp_cost, "fn_cost": fn_cost,
             "precision": tp / (tp + fp) if (tp + fp) else np.nan,
             "recall": tp / pos if pos else np.nan,
             "flag_rate": float(np.mean(flag)),

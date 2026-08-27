@@ -163,7 +163,9 @@ class RiskEngine:
         points = [
             {"threshold": round(float(r.threshold), 4), "cost": round(float(r.cost)),
              "precision": None if r.precision != r.precision else round(float(r.precision), 4),
-             "recall": round(float(r.recall), 4), "flag_rate": round(float(r.flag_rate), 4)}
+             "recall": round(float(r.recall), 4), "flag_rate": round(float(r.flag_rate), 4),
+             "tp": int(r.tp), "fp": int(r.fp), "fn": int(r.fn), "tn": int(r.tn),
+             "fp_cost": round(float(r.fp_cost)), "fn_cost": round(float(r.fn_cost))}
             for r in curve.itertuples()
         ]
         return {"points": points, "tau_star": rep["tau_star"],
