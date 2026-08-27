@@ -72,6 +72,12 @@ export interface AgentResult {
   verification?: Verification | null;
 }
 
+export interface CopilotAnswer {
+  answer: string;
+  citations: string[];
+  grounded: boolean;
+}
+
 export interface Metrics {
   n: number;
   prevalence: number;
@@ -242,6 +248,7 @@ export const api = {
   detail: (id: string) => get<CaseDetail>(`/orders/${id}`),
   investigate: (id: string) => post<AgentResult>(`/orders/${id}/investigate`),
   runBatch: (opts: BatchOptions = {}) => post<BatchResult>(`/batch/run`, opts),
+  ask: (id: string, question: string) => post<CopilotAnswer>(`/orders/${id}/ask`, { question }),
   execute: (id: string, action: string) => post<ExecuteResult>(`/orders/${id}/execute`, { action }),
   override: (decisionId: number, body: { reviewer: string; to_action: string; reason: string }) =>
     post<Record<string, unknown>>(`/decisions/${decisionId}/override`, body),

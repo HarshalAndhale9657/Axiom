@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Bot, CheckCircle2, ExternalLink, FileSearch, Gavel, ScrollText, ShieldAlert, ShieldCheck, Sparkles, Zap } from "lucide-react";
+import { Bot, CheckCircle2, ExternalLink, FileSearch, Gavel, MessagesSquare, ScrollText, Send, ShieldAlert, ShieldCheck, Sparkles, Zap } from "lucide-react";
 import { api, type AgentResult, type CaseDetail as Detail, type ExecuteResult, type Factor } from "@/lib/api";
 import { actionLabel, bandTheme, inr, pct } from "@/lib/format";
 import { BandPill, Button, ConfidenceBar, Card, KeyVal, Skeleton, Spinner } from "@/components/ui";
@@ -58,9 +58,12 @@ export default function CaseDetail({
   const [saving, setSaving] = useState(false);
   const [execRes, setExecRes] = useState<ExecuteResult | null>(null);
   const [executing, setExecuting] = useState(false);
+  const [chat, setChat] = useState<{ role: "user" | "bot"; text: string; citations?: string[]; grounded?: boolean }[]>([]);
+  const [askQ, setAskQ] = useState("");
+  const [asking, setAsking] = useState(false);
 
   useEffect(() => {
-    setAgent(null); setOvDone(null); setOvReason(""); setOvAction("approve"); setExecRes(null);
+    setAgent(null); setOvDone(null); setOvReason(""); setOvAction("approve"); setExecRes(null); setChat([]);
   }, [detail?.order_id]);
 
   // Demo auto-run: investigate, then override.
@@ -123,6 +126,20 @@ export default function CaseDetail({
     setExecuting(true);
     try { setExecRes(await api.execute(detail.order_id, action)); }
     finally { setExecuting(false); }
+  }
+  async function ask(question: string) {
+    if (!detail || !question.trim() || asking) return;
+    setAskQ("");
+    setChat((c) => [...c, { role: "user", text: question }]);
+    setAsking(true);
+    try {
+      const r = await api.ask(detail.order_id, question);
+      setChat((c) => [...c, { role: "bot", text: r.answer, citations: r.citations, grounded: r.grounded }]);
+    } catch {
+      setChat((c) => [...c, { role: "bot", text: "The copilot is unavailable right now.", grounded: false }]);
+    } finally {
+      setAsking(false);
+    }
   }
 
   return (
@@ -328,6 +345,70 @@ export default function CaseDetail({
                 </div>
               </div>
             )}
+          </div>
+        </Card>
+
+        <Card>
+          <div className="p-4">
+            <div className="mb-2 flex items-center gap-2">
+              <MessagesSquare className="h-4 w-4 text-blue-500" />
+              <h3 className="text-sm font-semibold text-ink">Analyst copilot</h3>
+              <span className="text-[10px] text-faint">grounded in this case + policy</span>
+            </div>
+
+            {chat.length === 0 && !asking && (
+              <p className="mb-2 text-xs text-muted">
+                Ask about this order. The copilot answers <b className="text-ink">only</b> from the case record and
+                retrieved policy — and says so when something isn’t on file.
+              </p>
+            )}
+
+            {chat.length > 0 && (
+              <div className="mb-2 space-y-2">
+                {chat.map((m, i) => (
+                  <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-[13px] ${
+                      m.role === "user" ? "bg-blue-600 text-white" : "border border-line bg-surface text-ink"
+                    }`}>
+                      {m.text}
+                      {m.role === "bot" && m.citations && m.citations.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {m.citations.map((c) => (
+                            <span key={c} className="rounded bg-surface2 px-1.5 py-0.5 font-mono text-[10px] text-muted">{c}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {asking && (
+                  <div className="flex justify-start">
+                    <div className="inline-flex items-center gap-2 rounded-2xl border border-line bg-surface px-3 py-2 text-[13px] text-muted"><Spinner /> thinking…</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {chat.length === 0 && !asking && (
+              <div className="mb-1 flex flex-wrap gap-1.5">
+                {["Why was this flagged?", "What if the buyer verifies their phone?", "Is a hard block justified here?"].map((q) => (
+                  <button key={q} onClick={() => ask(q)}
+                    className="rounded-full border border-line bg-surface px-2.5 py-1 text-[11px] text-muted transition hover:bg-surface2">
+                    {q}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <form onSubmit={(e) => { e.preventDefault(); ask(askQ); }} className="mt-2 flex items-center gap-2">
+              <input
+                value={askQ}
+                onChange={(e) => setAskQ(e.target.value)}
+                placeholder="Ask about this case…"
+                className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink"
+              />
+              <Button type="submit" disabled={asking || !askQ.trim()}><Send className="h-4 w-4" /></Button>
+            </form>
           </div>
         </Card>
       </div>

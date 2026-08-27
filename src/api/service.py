@@ -210,6 +210,20 @@ class RiskEngine:
             "actions": actions, **_BATCH_BASIS,
         }
 
+    def ask(self, order_id: str, question: str) -> dict:
+        """Grounded analyst copilot — answer a question using ONLY this case's record + policy."""
+        from src.agent.copilot import answer as copilot_answer
+
+        detail = self.assess(order_id)                    # score + SHAP + core decision + order
+        decision = detail["decision"]
+        rag_query = (f"{question} pincode {detail['order'].get('pincode')} address quality "
+                     f"buyer history {decision.get('action')} step-up verification part-pay")
+        policy = self.retriever.snippets(rag_query, k=4)
+        return copilot_answer(
+            question, order=detail["order"], risk_score=detail["risk_score"],
+            anomaly_score=detail["anomaly_score"], band=decision["band"], decision=decision,
+            factors=decision.get("top_factors", []), policy=policy, provider=self.provider())
+
     def execute(self, order_id: str, action: str | None = None) -> dict:
         """Run the bounded action for REAL (Razorpay test-mode link) and audit it."""
         from src.actions.razorpay_actuator import create_partial_link, create_prepaid_link

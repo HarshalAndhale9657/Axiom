@@ -5,6 +5,7 @@ Endpoints (all read the held-out test split as the live order queue):
     GET  /orders?limit=                 the risk queue (fast core decisions)
     GET  /orders/{id}                   full case detail (score + SHAP + decision)
     POST /orders/{id}/investigate       run the bounded agent (LLM), persist to audit
+    POST /orders/{id}/ask               grounded analyst copilot (Q&A over the case + policy)
     POST /batch/run                     autonomous batch over the amber queue (honest ₹ recovered)
     POST /decisions/{id}/override       human-in-the-loop override (immutable)
     GET  /audit?limit=                  the immutable audit trail
@@ -42,6 +43,10 @@ class ExecuteBody(BaseModel):
     action: str | None = None
 
 
+class AskBody(BaseModel):
+    question: str
+
+
 class BatchBody(BaseModel):
     max_orders: int | None = None
     budget_calls: int | None = None
@@ -74,6 +79,14 @@ def order_detail(order_id: str) -> dict:
 def order_investigate(order_id: str) -> dict:
     try:
         return get_engine().investigate(order_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail="order not found")
+
+
+@app.post("/orders/{order_id}/ask")
+def order_ask(order_id: str, body: AskBody) -> dict:
+    try:
+        return get_engine().ask(order_id, body.question)
     except KeyError:
         raise HTTPException(status_code=404, detail="order not found")
 
