@@ -19,7 +19,8 @@
 - ✅ **P6a — provider-agnostic LLM layer + grounded reason codes** (`src/agent/llm.py`, `src/agent/reason_code.py`): Gemini free-tier via lightweight REST (**key validated live**; thinking-budget fix for clean output), `MockProvider` for offline tests, grounded prompt that narrates only SHAP factors + policy (never invents) with a deterministic fallback. 4 tests + live-verified.
 - ✅ **P6b — bounded investigation agent + policy RAG** (`src/agent/investigate.py`, `src/agent/tools.py`, `src/rag/policy.py`): planner → typed tools → TF-IDF policy retrieval → **schema-constrained** LLM decision, validated to the closed action set with deterministic fallback. **Live-verified on Gemini** (real structured, policy-cited recommendation). 10 tests.
 - ✅ **P5b — FastAPI service + immutable audit trail + HITL** (`src/api/`, `src/audit/store.py`): RiskEngine orchestrates score → decide → investigate; SQLite audit is append-only (DB triggers block UPDATE/DELETE); human override logged with before/after. **Live HTTP smoke passed** (queue → detail → agent → override → audit → metrics). 9 tests.
-- ⏭️ **NEXT:** Next.js dashboard (queue → case detail → threshold slider → audit log) → README + architecture diagram → 5-min pitch video
+- ✅ **P7 — Next.js 16 dashboard** (`web/`): premium enterprise console — KPI header, filterable risk queue, case detail (SHAP bars + live agent trace + HITL override), interactive **BMR threshold slider** (Recharts), immutable audit table. Type-checks + builds clean; calls the live API. Added `/costcurve` endpoint.
+- ⏭️ **NEXT:** run both servers + polish UI/UX from screenshots → README + architecture diagram → 5-min pitch video
 
 ## Phase checklist (compressed ~10-day plan)
 - [x] **P1 — Data:** causal synthetic COD generator + tests ✓ (real-pincode grounding + EDA notebook = next)
@@ -28,7 +29,7 @@
 - [x] **P4 — ★ Evaluation:** BMR rupee cost curve (τ\*), PR-AUC, precision@k, calibration, baseline comparisons ✓ (failure-mode matrix → in the eval notebook next)
 - [x] **P5 — Decision core + API + audit:** rules/banding/tiered actions + FastAPI service + immutable SQLite audit + HITL override ✓ (live HTTP smoke)
 - [x] **P6 — Agent:** LLM provider + grounded reason codes + bounded agent (typed tools + policy RAG + schema-constrained structured decision) ✓ (live Gemini); HITL override wired at the API next
-- [ ] **P7 — Dashboard:** order queue + case detail (score/SHAP/reason/agent trace/citations/action) + live threshold slider + audit view + override
+- [x] **P7 — Dashboard:** queue + case detail (score/SHAP/reason/agent trace/citations/action) + live threshold slider + audit view + HITL override ✓ (Next.js 16, builds clean)
 - [ ] **P8 — Ship:** golden-path integration + Dockerize + industry-grade README + architecture diagram + record demo + **5-min pitch video** + submit early
 
 ## Blockers / to-verify

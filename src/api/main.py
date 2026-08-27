@@ -79,3 +79,8 @@ def audit(limit: int = 100) -> list[dict]:
 @app.get("/metrics")
 def metrics() -> dict:
     return get_engine().metrics()
+
+
+@app.get("/costcurve")
+def costcurve() -> dict:
+    return get_engine().cost_curve_points()

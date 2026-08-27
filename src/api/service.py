@@ -21,7 +21,7 @@ from src.agent.tools import OrderContext
 from src.audit.store import AuditStore
 from src.features.build_features import build_features
 from src.model.anomaly import AnomalyDetector
-from src.model.evaluation import CostModel, report
+from src.model.evaluation import CostModel, cost_curve, report
 from src.model.explain import RTOExplainer
 from src.model.train import load
 from src.rag.policy import PolicyRetriever
@@ -154,3 +154,18 @@ class RiskEngine:
                      self.cost)
         rep.pop("_curve", None)
         return rep
+
+    def cost_curve_points(self, n_grid: int = 60) -> dict:
+        """The BMR cost curve as plottable points, for the interactive threshold slider."""
+        curve = cost_curve(self.queue["is_rto"].to_numpy(), self._proba,
+                           self.queue["order_value"].to_numpy(), self.cost, n_grid=n_grid)
+        rep = self.metrics()
+        points = [
+            {"threshold": round(float(r.threshold), 4), "cost": round(float(r.cost)),
+             "precision": None if r.precision != r.precision else round(float(r.precision), 4),
+             "recall": round(float(r.recall), 4), "flag_rate": round(float(r.flag_rate), 4)}
+            for r in curve.itertuples()
+        ]
+        return {"points": points, "tau_star": rep["tau_star"],
+                "block_all_cod_cost": rep["baselines"]["block_all_cod_cost"],
+                "approve_all_cost": rep["baselines"]["approve_all_cost"], "n": rep["n"]}
