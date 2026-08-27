@@ -16,7 +16,8 @@
 - ✅ **P4 ★ — honest cost-based evaluation** (`src/model/evaluation.py`): **BMR rupee cost curve, τ\*=0.21** (not 0.5), example-dependent costs, precision@k, calibration table, 3 figures. **Axiom @ τ\* costs ₹49.3k/1k orders — 31% less than block-all-COD (₹71.8k), 24% less than approve-all (₹64.8k).** Killer insight: naive block-all-COD is *worse* than doing nothing. 7 tests (incl. hand-checked cost, τ\*<0.5, beats naive).
 - ✅ **P3b — SHAP explanations + IsolationForest anomaly** (`src/model/explain.py`, `src/model/anomaly.py`): per-order grounded factors + plain-English labels (the facts the LLM may narrate); unsupervised defense-in-depth trip-wire. 7 tests.
 - ✅ **P5a — deterministic decision core** (`src/rules/decision_core.py`): rules-before-banding, **closed bounded action space**, tiered dynamic friction, anomaly trip-wire, every action cites a policy clause. 11 tests.
-- ⏭️ **NEXT:** FastAPI scoring+decision service + SQLite immutable audit store → then the LLM reason-code + bounded agent layer (needs the free Gemini key)
+- ✅ **P6a — provider-agnostic LLM layer + grounded reason codes** (`src/agent/llm.py`, `src/agent/reason_code.py`): Gemini free-tier via lightweight REST (**key validated live**; thinking-budget fix for clean output), `MockProvider` for offline tests, grounded prompt that narrates only SHAP factors + policy (never invents) with a deterministic fallback. 4 tests + live-verified.
+- ⏭️ **NEXT:** bounded agent (typed tools + policy RAG + structured decision + HITL) → FastAPI service + SQLite immutable audit store → dashboard
 
 ## Phase checklist (compressed ~10-day plan)
 - [x] **P1 — Data:** causal synthetic COD generator + tests ✓ (real-pincode grounding + EDA notebook = next)
@@ -24,7 +25,7 @@
 - [x] **P3 — Model:** calibration + SHAP explanations + IsolationForest anomaly ✓
 - [x] **P4 — ★ Evaluation:** BMR rupee cost curve (τ\*), PR-AUC, precision@k, calibration, baseline comparisons ✓ (failure-mode matrix → in the eval notebook next)
 - [~] **P5 — Decision core + API:** rules/banding + tiered actions ✓ (11 tests); FastAPI + SQLite audit = next
-- [ ] **P6 — Agent:** provider-agnostic LLM tools + planner + structured decision + grounded reason codes + policy RAG + HITL
+- [~] **P6 — Agent:** LLM provider + **grounded reason codes** ✓ (live Gemini); typed tools + policy RAG + structured decision + HITL = next
 - [ ] **P7 — Dashboard:** order queue + case detail (score/SHAP/reason/agent trace/citations/action) + live threshold slider + audit view + override
 - [ ] **P8 — Ship:** golden-path integration + Dockerize + industry-grade README + architecture diagram + record demo + **5-min pitch video** + submit early
 
