@@ -51,6 +51,13 @@ export interface ToolCall {
   output: Record<string, unknown>;
 }
 
+export interface Verification {
+  verdict: "agree" | "veto";
+  confidence: number;
+  reason: string;
+  verifier: string;
+}
+
 export interface AgentResult {
   decision_id: number;
   action: string;
@@ -61,6 +68,7 @@ export interface AgentResult {
   evidence: ToolCall[];
   retrieved_policy: string[];
   source: "llm" | "fallback";
+  verification?: Verification | null;
 }
 
 export interface Metrics {

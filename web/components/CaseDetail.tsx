@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import { Bot, CheckCircle2, ExternalLink, FileSearch, Gavel, ScrollText, Sparkles, Zap } from "lucide-react";
+import { Bot, CheckCircle2, ExternalLink, FileSearch, Gavel, ScrollText, ShieldAlert, ShieldCheck, Sparkles, Zap } from "lucide-react";
 import { api, type AgentResult, type CaseDetail as Detail, type ExecuteResult, type Factor } from "@/lib/api";
 import { actionLabel, bandTheme, inr, pct } from "@/lib/format";
 import { BandPill, Button, ConfidenceBar, Card, KeyVal, Skeleton, Spinner } from "@/components/ui";
@@ -260,6 +260,27 @@ export default function CaseDetail({
                     ))}
                   </div>
                 </div>
+
+                {agent.verification && (
+                  <div className={`rounded-xl border p-3 ${agent.verification.verdict === "veto" ? "border-amber-500/30 bg-amber-500/5" : "border-emerald-500/25 bg-emerald-500/5"}`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        {agent.verification.verdict === "veto"
+                          ? <ShieldAlert className="h-4 w-4 text-amber-500" />
+                          : <ShieldCheck className="h-4 w-4 text-emerald-500" />}
+                        <span className="text-xs font-semibold text-ink">
+                          Independent verifier — {agent.verification.verdict === "veto" ? "vetoed" : "agrees"}
+                        </span>
+                      </div>
+                      <span className="rounded-md bg-surface px-1.5 py-0.5 font-mono text-[10px] text-muted ring-1 ring-line">{agent.verification.verifier}</span>
+                    </div>
+                    <p className="mt-1.5 text-[13px] text-ink">{agent.verification.reason}</p>
+                    <p className="mt-1 text-[11px] text-faint">
+                      A different-vendor model independently reviewed the same evidence &amp; policy · confidence {pct(agent.verification.confidence)}
+                      {agent.verification.verdict === "veto" && " · routed to a human"}
+                    </p>
+                  </div>
+                )}
 
                 <div>
                   <div className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted"><FileSearch className="h-3.5 w-3.5" /> Evidence gathered</div>

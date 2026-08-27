@@ -65,6 +65,7 @@ class AgentDecision:
     evidence: list[ToolCall]
     retrieved_policy: list[str]
     source: str  # "llm" | "fallback"
+    verification: dict | None = None  # independent cross-vendor verdict, if any
 
     def as_dict(self) -> dict:
         return {
@@ -73,6 +74,7 @@ class AgentDecision:
             "policy_citations": self.policy_citations,
             "evidence": [c.as_dict() for c in self.evidence],
             "retrieved_policy": self.retrieved_policy, "source": self.source,
+            "verification": self.verification,
         }
 
 
@@ -116,10 +118,29 @@ def _fallback(ctx: OrderContext, calls: list[ToolCall], snippets: list[str],
                          d.policy_citations, calls, snippets, "fallback")
 
 
+def _attach_verification(dec: AgentDecision, ctx: OrderContext, verifier) -> None:
+    """Run the independent cross-vendor verifier and attach its verdict (veto -> human)."""
+    from src.agent.verify import get_verifier, verify_decision
+
+    if verifier == "auto":
+        prov, label = get_verifier()
+    elif verifier is None:
+        prov, label = None, None
+    else:
+        prov, label = verifier, "verifier"
+    if prov is None:
+        return
+    verdict = verify_decision(dec, ctx, provider=prov, vendor_label=label)
+    if verdict:
+        dec.verification = verdict
+        if verdict["verdict"] == "veto":
+            dec.requires_human = True
+
+
 def investigate(ctx: OrderContext, retriever: PolicyRetriever, *,
                 provider: LLMProvider | None = None,
-                config: DecisionConfig | None = None) -> AgentDecision:
-    """Run the bounded investigation and return a validated, auditable recommendation."""
+                config: DecisionConfig | None = None, verifier="auto") -> AgentDecision:
+    """Run the bounded investigation, verify it independently, and return the recommendation."""
     config = config or DecisionConfig()
     calls = [ToolCall(name, TOOLS[name](ctx)) for name in plan_tools(ctx)]
     snippets = retriever.snippets(_policy_query(ctx), k=4)
@@ -131,11 +152,14 @@ def investigate(ctx: OrderContext, retriever: PolicyRetriever, *,
         data = json.loads(raw)
         action = data.get("action")
         if action not in ACTIONS:                     # bound-check the LLM's choice
-            return _fallback(ctx, calls, snippets, config)
-        confidence = min(max(float(data.get("confidence", 0.6)), 0.0), 1.0)
-        citations = [c for c in data.get("policy_citations", []) if isinstance(c, str)]
-        return AgentDecision(action, confidence, str(data.get("rationale", "")).strip(),
-                             bool(data.get("requires_human", False)), citations,
-                             calls, snippets, "llm")
+            dec = _fallback(ctx, calls, snippets, config)
+        else:
+            confidence = min(max(float(data.get("confidence", 0.6)), 0.0), 1.0)
+            citations = [c for c in data.get("policy_citations", []) if isinstance(c, str)]
+            dec = AgentDecision(action, confidence, str(data.get("rationale", "")).strip(),
+                                bool(data.get("requires_human", False)), citations,
+                                calls, snippets, "llm")
     except (LLMError, json.JSONDecodeError, KeyError, TypeError, ValueError):
-        return _fallback(ctx, calls, snippets, config)
+        dec = _fallback(ctx, calls, snippets, config)
+    _attach_verification(dec, ctx, verifier)
+    return dec

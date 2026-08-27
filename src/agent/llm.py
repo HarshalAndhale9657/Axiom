@@ -103,12 +103,46 @@ class MockProvider:
         return "MOCK: " + prompt.strip().splitlines()[-1][:80]
 
 
+class OpenAIProvider:
+    """OpenAI chat models (e.g. gpt-4o-mini) — used as the INDEPENDENT cross-vendor verifier."""
+
+    def __init__(self, api_key: str | None = None, model: str | None = None) -> None:
+        load_env()
+        self.api_key = api_key or os.environ.get("OPENAI_API_KEY")
+        self.model = model or os.environ.get("AXIOM_OPENAI_MODEL", "gpt-4o-mini")
+        if not self.api_key:
+            raise LLMError("OPENAI_API_KEY is not set (put it in .env)")
+
+    def generate(self, prompt: str, *, system: str | None = None, temperature: float = 0.0,
+                 max_output_tokens: int = 256, thinking_budget: int | None = 0,
+                 response_schema: dict | None = None) -> str:
+        try:
+            from openai import OpenAI
+        except Exception as exc:  # SDK missing
+            raise LLMError(f"openai SDK not installed: {exc}") from exc
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": prompt})
+        kwargs: dict = {"model": self.model, "messages": messages, "temperature": temperature,
+                        "max_tokens": max_output_tokens}
+        if response_schema is not None:
+            kwargs["response_format"] = {"type": "json_object"}  # guaranteed-valid JSON
+        try:
+            resp = OpenAI(api_key=self.api_key).chat.completions.create(**kwargs)
+            return (resp.choices[0].message.content or "").strip()
+        except Exception as exc:
+            raise LLMError(f"OpenAI error: {str(exc)[:200]}") from exc
+
+
 def get_provider(name: str | None = None) -> LLMProvider:
     """Factory driven by ``AXIOM_LLM_PROVIDER`` (default 'gemini'). 'mock' for tests."""
     load_env()
     name = (name or os.environ.get("AXIOM_LLM_PROVIDER", "gemini")).lower()
     if name == "gemini":
         return GeminiProvider()
+    if name == "openai":
+        return OpenAIProvider()
     if name == "mock":
         return MockProvider()
-    raise LLMError(f"unknown LLM provider {name!r} (supported: gemini, mock)")
+    raise LLMError(f"unknown LLM provider {name!r} (supported: gemini, openai, mock)")
