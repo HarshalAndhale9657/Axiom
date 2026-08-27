@@ -149,11 +149,14 @@ def decide(
     if band == Band.GREEN and anomaly_score >= cfg.anomaly_escalate:
         band, anomaly_bumped = Band.AMBER, True
 
-    reason = reason_from_shap or {
-        Band.GREEN: "Low predicted RTO risk.",
+    defaults = {
+        Band.GREEN: "Low RTO risk — cleared for frictionless processing.",
         Band.AMBER: "Borderline RTO risk — verify before dispatch.",
         Band.RED: "High predicted RTO risk.",
-    }[band]
+    }
+    # Green reads as low-risk; the grounded "elevated risk" phrasing is reserved for
+    # amber/red, where the SHAP drivers actually push risk upward.
+    reason = defaults[Band.GREEN] if band == Band.GREEN else (reason_from_shap or defaults[band])
     if anomaly_bumped:
         reason = "Unusual order pattern (anomaly trip-wire) — verify. " + reason
 

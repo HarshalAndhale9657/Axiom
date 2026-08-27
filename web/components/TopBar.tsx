@@ -8,10 +8,10 @@ import { CountUp, Skeleton, ThemeToggle } from "@/components/ui";
 
 function Kpi({ label, value, sub }: { label: string; value: ReactNode; sub?: string }) {
   return (
-    <div className="rounded-xl bg-white/10 px-4 py-2.5 ring-1 ring-white/15 backdrop-blur">
-      <div className="text-[10px] font-medium uppercase tracking-wider text-indigo-200/80">{label}</div>
+    <div className="rounded-xl bg-white/[0.04] px-4 py-2.5 ring-1 ring-white/10">
+      <div className="text-[10px] font-medium uppercase tracking-wider text-slate-400">{label}</div>
       <div className="text-lg font-semibold leading-tight text-white">{value}</div>
-      {sub && <div className="text-[11px] text-indigo-200/70">{sub}</div>}
+      {sub && <div className="text-[11px] text-slate-500">{sub}</div>}
     </div>
   );
 }
@@ -24,7 +24,7 @@ export default function TopBar({
   const m = metrics;
   const lift = m ? (m.pr_auc / m.prevalence).toFixed(1) : "–";
   return (
-    <header className="bg-gradient-to-r from-indigo-950 via-slate-900 to-slate-900">
+    <header className="border-b border-slate-800/60 bg-gradient-to-b from-slate-900 to-slate-950">
       <div className="mx-auto max-w-[1400px] px-6 py-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">

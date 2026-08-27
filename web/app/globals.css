@@ -12,13 +12,13 @@
 }
 
 .dark {
-  --app: #0a0f1c;
-  --surface: #0f1626;
-  --surface2: #161f33;
-  --line: #233149;
-  --ink: #e7ebf3;
-  --muted: #93a1b8;
-  --faint: #64748b;
+  --app: #0c0f16;
+  --surface: #131721;
+  --surface2: #1a1f2b;
+  --line: #272d3a;
+  --ink: #e6e9ef;
+  --muted: #97a1b2;
+  --faint: #667083;
 }
 
 @theme inline {
@@ -74,21 +74,15 @@ body,
   100% { transform: translateX(100%); }
 }
 
-@keyframes flow {
-  0% { left: -6px; opacity: 0; }
-  15% { opacity: 1; }
-  85% { opacity: 1; }
-  100% { left: 100%; opacity: 0; }
+@keyframes flowV {
+  0% { top: -4px; opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { top: 100%; opacity: 0; }
 }
-.flow-dot {
-  animation: flow 2.2s linear infinite;
-}
-@keyframes pulseGlow {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 1; }
-}
-.pulse-node {
-  animation: pulseGlow 2.4s ease-in-out infinite;
+.flow-dot-v {
+  top: 0;
+  animation: flowV 2.2s linear infinite;
 }
 .skeleton {
   position: relative;
