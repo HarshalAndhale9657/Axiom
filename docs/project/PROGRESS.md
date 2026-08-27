@@ -20,7 +20,8 @@
 - ✅ **P6b — bounded investigation agent + policy RAG** (`src/agent/investigate.py`, `src/agent/tools.py`, `src/rag/policy.py`): planner → typed tools → TF-IDF policy retrieval → **schema-constrained** LLM decision, validated to the closed action set with deterministic fallback. **Live-verified on Gemini** (real structured, policy-cited recommendation). 10 tests.
 - ✅ **P5b — FastAPI service + immutable audit trail + HITL** (`src/api/`, `src/audit/store.py`): RiskEngine orchestrates score → decide → investigate; SQLite audit is append-only (DB triggers block UPDATE/DELETE); human override logged with before/after. **Live HTTP smoke passed** (queue → detail → agent → override → audit → metrics). 9 tests.
 - ✅ **P7 — Next.js 16 dashboard** (`web/`): premium enterprise console — KPI header, filterable risk queue, case detail (SHAP bars + live agent trace + HITL override), interactive **BMR threshold slider** (Recharts), immutable audit table. Type-checks + builds clean; calls the live API. Added `/costcurve` endpoint.
-- ⏭️ **NEXT:** run both servers + polish UI/UX from screenshots → README + architecture diagram → 5-min pitch video
+- ✅ **P7+ — UI/UX elevations:** dark-mode toggle (design-token system), count-up KPIs + skeleton loaders + smooth transitions, **₹ confusion-matrix panel + live decision-flow diagram** (Economics tab), and one-click **Demo mode** (auto-walkthrough: select → investigate → override → tour). Frontend typechecks clean; backend cost curve now emits confusion cells + ₹ split.
+- ⏭️ **NEXT:** README + architecture diagram → 5-min pitch video
 
 ## Phase checklist (compressed ~10-day plan)
 - [x] **P1 — Data:** causal synthetic COD generator + tests ✓ (real-pincode grounding + EDA notebook = next)

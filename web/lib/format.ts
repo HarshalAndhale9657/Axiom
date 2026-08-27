@@ -22,10 +22,23 @@ const ACTION_LABELS: Record<string, string> = {
 export const actionLabel = (a: string) =>
   ACTION_LABELS[a] ?? a.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
-export const bandTheme: Record<Band, { text: string; bg: string; ring: string; dot: string; label: string }> = {
-  green: { text: "text-emerald-700", bg: "bg-emerald-50", ring: "ring-emerald-200", dot: "bg-emerald-500", label: "Low risk" },
-  amber: { text: "text-amber-700", bg: "bg-amber-50", ring: "ring-amber-200", dot: "bg-amber-500", label: "Borderline" },
-  red: { text: "text-rose-700", bg: "bg-rose-50", ring: "ring-rose-200", dot: "bg-rose-500", label: "High risk" },
+// Theme-agnostic band styling (opacity fills read well on both light and dark surfaces).
+export const bandTheme: Record<Band, { text: string; chip: string; dot: string; bar: string; label: string }> = {
+  green: {
+    text: "text-emerald-600 dark:text-emerald-400",
+    chip: "bg-emerald-500/10 ring-emerald-500/25 text-emerald-600 dark:text-emerald-400",
+    dot: "bg-emerald-500", bar: "bg-emerald-500", label: "Low risk",
+  },
+  amber: {
+    text: "text-amber-600 dark:text-amber-400",
+    chip: "bg-amber-500/10 ring-amber-500/25 text-amber-600 dark:text-amber-400",
+    dot: "bg-amber-500", bar: "bg-amber-500", label: "Borderline",
+  },
+  red: {
+    text: "text-rose-600 dark:text-rose-400",
+    chip: "bg-rose-500/10 ring-rose-500/25 text-rose-600 dark:text-rose-400",
+    dot: "bg-rose-500", bar: "bg-rose-500", label: "High risk",
+  },
 };
 
 export const timeAgo = (ts: number) => {

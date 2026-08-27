@@ -81,8 +81,22 @@ export interface Metrics {
   };
 }
 
+export interface CostPoint {
+  threshold: number;
+  cost: number;
+  precision: number | null;
+  recall: number;
+  flag_rate: number;
+  tp: number;
+  fp: number;
+  fn: number;
+  tn: number;
+  fp_cost: number;
+  fn_cost: number;
+}
+
 export interface CostCurve {
-  points: { threshold: number; cost: number; precision: number | null; recall: number; flag_rate: number }[];
+  points: CostPoint[];
   tau_star: number;
   block_all_cod_cost: number;
   approve_all_cost: number;
