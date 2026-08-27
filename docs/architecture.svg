@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 340" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+  <rect width="1120" height="340" fill="#ffffff"/>
+  <text x="28" y="42" font-size="21" font-weight="700" fill="#0d1526">Axiom · AI Risk Manager — decision pipeline</text>
+  <text x="28" y="66" font-size="13" fill="#54607a">One bounded, auditable, defense-only path for every COD order.</text>
+
+  <!-- boxes -->
+  <!-- 1 Order -->
+  <rect x="24" y="112" width="160" height="150" rx="16" fill="#ffffff" stroke="#e1e7f0"/>
+  <circle cx="42" cy="138" r="4" fill="#64748b"/>
+  <text x="54" y="143" font-size="14" font-weight="700" fill="#334155">Order</text>
+  <text x="40" y="172" font-size="11.5" fill="#54607a">COD checkout</text>
+  <text x="40" y="190" font-size="11.5" fill="#54607a">scored pre-dispatch</text>
+
+  <!-- 2 Detector -->
+  <rect x="208" y="112" width="160" height="150" rx="16" fill="#ffffff" stroke="#e1e7f0"/>
+  <circle cx="226" cy="138" r="4" fill="#2563eb"/>
+  <text x="238" y="143" font-size="14" font-weight="700" fill="#1d4ed8">Detector</text>
+  <text x="224" y="172" font-size="11.5" fill="#54607a">Calibrated LightGBM</text>
+  <text x="224" y="190" font-size="11.5" fill="#54607a">SHAP · IsolationForest</text>
+  <text x="224" y="208" font-size="11.5" fill="#54607a">→ risk score</text>
+
+  <!-- 3 Decision core -->
+  <rect x="392" y="112" width="160" height="150" rx="16" fill="#ffffff" stroke="#e1e7f0"/>
+  <circle cx="410" cy="138" r="4" fill="#2563eb"/>
+  <text x="422" y="143" font-size="14" font-weight="700" fill="#1d4ed8">Decision core</text>
+  <text x="408" y="172" font-size="11.5" fill="#54607a">Rules before LLM</text>
+  <text x="408" y="190" font-size="11.5" fill="#54607a">band by cost-optimal τ*</text>
+  <text x="408" y="208" font-size="11.5" fill="#54607a">GREEN / AMBER / RED</text>
+
+  <!-- 4 Agent -->
+  <rect x="576" y="112" width="160" height="150" rx="16" fill="#ffffff" stroke="#e1e7f0"/>
+  <circle cx="594" cy="138" r="4" fill="#2563eb"/>
+  <text x="606" y="143" font-size="14" font-weight="700" fill="#1d4ed8">Agent</text>
+  <rect x="646" y="130" width="76" height="16" rx="8" fill="#fef3c7"/>
+  <text x="653" y="142" font-size="9.5" font-weight="600" fill="#b45309">AMBER only</text>
+  <text x="592" y="172" font-size="11.5" fill="#54607a">Planner → typed tools</text>
+  <text x="592" y="190" font-size="11.5" fill="#54607a">policy RAG → decision</text>
+  <text x="592" y="208" font-size="11.5" fill="#54607a">schema-bounded</text>
+
+  <!-- 5 Action -->
+  <rect x="760" y="112" width="160" height="150" rx="16" fill="#ffffff" stroke="#e1e7f0"/>
+  <circle cx="778" cy="138" r="4" fill="#059669"/>
+  <text x="790" y="143" font-size="14" font-weight="700" fill="#047857">Action</text>
+  <text x="776" y="172" font-size="11.5" fill="#54607a">Bounded &amp; tiered</text>
+  <text x="776" y="190" font-size="11.5" fill="#54607a">dynamic friction</text>
+  <text x="776" y="208" font-size="11.5" fill="#54607a">defense-only</text>
+
+  <!-- 6 Audit -->
+  <rect x="944" y="112" width="160" height="150" rx="16" fill="#ffffff" stroke="#e1e7f0"/>
+  <circle cx="962" cy="138" r="4" fill="#64748b"/>
+  <text x="974" y="143" font-size="14" font-weight="700" fill="#334155">Audit</text>
+  <text x="960" y="172" font-size="11.5" fill="#54607a">Immutable log</text>
+  <text x="960" y="190" font-size="11.5" fill="#54607a">human override</text>
+
+  <!-- arrows -->
+  <line x1="184" y1="187" x2="206" y2="187" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="368" y1="187" x2="390" y2="187" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="552" y1="187" x2="574" y2="187" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="736" y1="187" x2="758" y2="187" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="920" y1="187" x2="942" y2="187" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <text x="28" y="300" font-size="11.5" fill="#54607a">Grounded reason codes (SHAP → LLM, never invents)  ·  the LLM never overrides the score  ·  every action cites a policy clause  ·  human-in-the-loop.</text>
+</svg>

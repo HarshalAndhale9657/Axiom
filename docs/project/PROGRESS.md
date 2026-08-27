@@ -21,7 +21,8 @@
 - ✅ **P5b — FastAPI service + immutable audit trail + HITL** (`src/api/`, `src/audit/store.py`): RiskEngine orchestrates score → decide → investigate; SQLite audit is append-only (DB triggers block UPDATE/DELETE); human override logged with before/after. **Live HTTP smoke passed** (queue → detail → agent → override → audit → metrics). 9 tests.
 - ✅ **P7 — Next.js 16 dashboard** (`web/`): premium enterprise console — KPI header, filterable risk queue, case detail (SHAP bars + live agent trace + HITL override), interactive **BMR threshold slider** (Recharts), immutable audit table. Type-checks + builds clean; calls the live API. Added `/costcurve` endpoint.
 - ✅ **P7+ — UI/UX elevations:** dark-mode toggle (design-token system), count-up KPIs + skeleton loaders + smooth transitions, **₹ confusion-matrix panel + live decision-flow diagram** (Economics tab), and one-click **Demo mode** (auto-walkthrough: select → investigate → override → tour). Frontend typechecks clean; backend cost curve now emits confusion cells + ₹ split.
-- ⏭️ **NEXT:** README + architecture diagram → 5-min pitch video
+- ✅ **P8a — industry-grade README** (`README.md`): badges, embedded **architecture SVG** + **BMR cost-curve / PR / calibration** figures, the rupee money-story table, Track-2 rubric map, one-command Quickstart + `Makefile`. Diagram at `docs/architecture.svg`; figures in `docs/figures/`.
+- ⏭️ **NEXT:** add dashboard screenshots (`docs/screenshots/`) + record the "Play demo" video → 5-min pitch script.
 
 ## Phase checklist (compressed ~10-day plan)
 - [x] **P1 — Data:** causal synthetic COD generator + tests ✓ (real-pincode grounding + EDA notebook = next)
