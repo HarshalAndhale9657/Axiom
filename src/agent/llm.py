@@ -27,7 +27,7 @@ class LLMError(RuntimeError):
 class LLMProvider(Protocol):
     def generate(self, prompt: str, *, system: str | None = None,
                  temperature: float = 0.0, max_output_tokens: int = 256,
-                 thinking_budget: int | None = 0) -> str:
+                 thinking_budget: int | None = 0, response_schema: dict | None = None) -> str:
         ...
 
 
@@ -43,7 +43,7 @@ class GeminiProvider:
 
     def generate(self, prompt: str, *, system: str | None = None,
                  temperature: float = 0.0, max_output_tokens: int = 256,
-                 thinking_budget: int | None = 0) -> str:
+                 thinking_budget: int | None = 0, response_schema: dict | None = None) -> str:
         url = (f"https://generativelanguage.googleapis.com/v1beta/models/"
                f"{self.model}:generateContent?key={self.api_key}")
         gen_cfg: dict = {"temperature": temperature, "maxOutputTokens": max_output_tokens}
@@ -51,6 +51,10 @@ class GeminiProvider:
         # starve short answers. We disable it (budget 0) for concise grounded outputs.
         if thinking_budget is not None:
             gen_cfg["thinkingConfig"] = {"thinkingBudget": thinking_budget}
+        # Force valid JSON matching a schema (used by the agent's structured decision).
+        if response_schema is not None:
+            gen_cfg["responseMimeType"] = "application/json"
+            gen_cfg["responseSchema"] = response_schema
         payload: dict = {"contents": [{"parts": [{"text": prompt}]}], "generationConfig": gen_cfg}
         if system:
             payload["systemInstruction"] = {"parts": [{"text": system}]}
@@ -92,8 +96,8 @@ class MockProvider:
 
     def generate(self, prompt: str, *, system: str | None = None,
                  temperature: float = 0.0, max_output_tokens: int = 256,
-                 thinking_budget: int | None = 0) -> str:
-        self.calls.append({"prompt": prompt, "system": system})
+                 thinking_budget: int | None = 0, response_schema: dict | None = None) -> str:
+        self.calls.append({"prompt": prompt, "system": system, "schema": response_schema})
         if self.canned is not None:
             return self.canned
         return "MOCK: " + prompt.strip().splitlines()[-1][:80]

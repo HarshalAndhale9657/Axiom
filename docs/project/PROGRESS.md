@@ -17,7 +17,8 @@
 - ✅ **P3b — SHAP explanations + IsolationForest anomaly** (`src/model/explain.py`, `src/model/anomaly.py`): per-order grounded factors + plain-English labels (the facts the LLM may narrate); unsupervised defense-in-depth trip-wire. 7 tests.
 - ✅ **P5a — deterministic decision core** (`src/rules/decision_core.py`): rules-before-banding, **closed bounded action space**, tiered dynamic friction, anomaly trip-wire, every action cites a policy clause. 11 tests.
 - ✅ **P6a — provider-agnostic LLM layer + grounded reason codes** (`src/agent/llm.py`, `src/agent/reason_code.py`): Gemini free-tier via lightweight REST (**key validated live**; thinking-budget fix for clean output), `MockProvider` for offline tests, grounded prompt that narrates only SHAP factors + policy (never invents) with a deterministic fallback. 4 tests + live-verified.
-- ⏭️ **NEXT:** bounded agent (typed tools + policy RAG + structured decision + HITL) → FastAPI service + SQLite immutable audit store → dashboard
+- ✅ **P6b — bounded investigation agent + policy RAG** (`src/agent/investigate.py`, `src/agent/tools.py`, `src/rag/policy.py`): planner → typed tools → TF-IDF policy retrieval → **schema-constrained** LLM decision, validated to the closed action set with deterministic fallback. **Live-verified on Gemini** (real structured, policy-cited recommendation). 10 tests.
+- ⏭️ **NEXT:** FastAPI service (score → decide → investigate) + **SQLite immutable audit trail** (with HITL override) → Next.js dashboard → README + pitch
 
 ## Phase checklist (compressed ~10-day plan)
 - [x] **P1 — Data:** causal synthetic COD generator + tests ✓ (real-pincode grounding + EDA notebook = next)
@@ -25,7 +26,7 @@
 - [x] **P3 — Model:** calibration + SHAP explanations + IsolationForest anomaly ✓
 - [x] **P4 — ★ Evaluation:** BMR rupee cost curve (τ\*), PR-AUC, precision@k, calibration, baseline comparisons ✓ (failure-mode matrix → in the eval notebook next)
 - [~] **P5 — Decision core + API:** rules/banding + tiered actions ✓ (11 tests); FastAPI + SQLite audit = next
-- [~] **P6 — Agent:** LLM provider + **grounded reason codes** ✓ (live Gemini); typed tools + policy RAG + structured decision + HITL = next
+- [x] **P6 — Agent:** LLM provider + grounded reason codes + bounded agent (typed tools + policy RAG + schema-constrained structured decision) ✓ (live Gemini); HITL override wired at the API next
 - [ ] **P7 — Dashboard:** order queue + case detail (score/SHAP/reason/agent trace/citations/action) + live threshold slider + audit view + override
 - [ ] **P8 — Ship:** golden-path integration + Dockerize + industry-grade README + architecture diagram + record demo + **5-min pitch video** + submit early
 
