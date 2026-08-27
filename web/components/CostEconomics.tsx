@@ -63,7 +63,7 @@ export default function CostEconomics() {
           <div className="mt-4">
             <div className="mb-1 flex justify-between text-xs text-slate-500">
               <span>Drag the operating threshold</span>
-              <span className="font-mono text-slate-700">τ = {tau.toFixed(2)}</span>
+              <span className="text-slate-700">τ = <span className="font-mono">{tau.toFixed(2)}</span></span>
             </div>
             <input type="range" min={0.02} max={0.98} step={0.01} value={tau}
               onChange={(e) => setTau(Number(e.target.value))} className="axiom-range w-full" />

@@ -10,8 +10,17 @@ export const inr = (n: number, compact = false) =>
 
 export const pct = (n: number, digits = 0) => `${(n * 100).toFixed(digits)}%`;
 
+const ACTION_LABELS: Record<string, string> = {
+  approve: "Approve",
+  step_up_verification: "Step-up Verification",
+  part_pay_cod: "Part-Pay COD",
+  convert_cod_to_prepaid: "Convert COD → Prepaid",
+  hold_for_review: "Hold for Review",
+  escalate_to_human: "Escalate to Human",
+};
+
 export const actionLabel = (a: string) =>
-  a.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  ACTION_LABELS[a] ?? a.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
 export const bandTheme: Record<Band, { text: string; bg: string; ring: string; dot: string; label: string }> = {
   green: { text: "text-emerald-700", bg: "bg-emerald-50", ring: "ring-emerald-200", dot: "bg-emerald-500", label: "Low risk" },

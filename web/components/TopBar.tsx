@@ -37,7 +37,7 @@ export default function TopBar({ metrics }: { metrics: Metrics | null }) {
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <Kpi label="PR-AUC" value={m ? m.pr_auc.toFixed(3) : "–"} sub={m ? `${lift}× baseline` : "loading"} />
-          <Kpi label="Cost-optimal τ*" value={m ? m.tau_star.toFixed(2) : "–"} sub="vs naive 0.50" />
+          <Kpi label="Cost-optimal threshold" value={m ? m.tau_star.toFixed(2) : "–"} sub="τ* · vs naive 0.50" />
           <Kpi
             label="Saved / 1k orders"
             value={m ? inr(m.money.rupees_saved_per_1k_vs_block_all_cod, true) : "–"}

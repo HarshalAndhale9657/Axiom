@@ -84,7 +84,7 @@ export default function CaseDetail({ detail, loading }: { detail: Detail | null;
   return (
     <div className="animate-in flex h-full flex-col overflow-y-auto">
       {/* header */}
-      <div className={`sticky top-0 z-10 border-b border-slate-200 bg-white/90 px-5 py-4 backdrop-blur`}>
+      <div className="sticky top-0 z-10 border-b border-slate-200 bg-white px-5 py-4 shadow-sm">
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2">
