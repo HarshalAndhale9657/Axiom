@@ -84,3 +84,8 @@ def metrics() -> dict:
 @app.get("/costcurve")
 def costcurve() -> dict:
     return get_engine().cost_curve_points()
+
+
+@app.get("/leakage")
+def leakage() -> dict:
+    return get_engine().leakage_report()

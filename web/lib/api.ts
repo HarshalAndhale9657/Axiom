@@ -103,6 +103,16 @@ export interface CostCurve {
   n: number;
 }
 
+export interface LeakageMetrics {
+  roc_auc: number;
+  pr_auc: number;
+  prevalence: number;
+}
+export interface Leakage {
+  honest: LeakageMetrics;
+  leaky: LeakageMetrics;
+}
+
 export interface AuditRow {
   id: number;
   order_id: string;
@@ -140,6 +150,7 @@ export const api = {
   audit: (limit = 40) => get<AuditRow[]>(`/audit?limit=${limit}`),
   metrics: () => get<Metrics>(`/metrics`),
   costcurve: () => get<CostCurve>(`/costcurve`),
+  leakage: () => get<Leakage>(`/leakage`),
   health: () => get<{ status: string }>(`/`),
 };
 

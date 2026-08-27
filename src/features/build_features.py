@@ -117,7 +117,7 @@ def _device_distinct_buyers_prior(df: pd.DataFrame) -> pd.Series:
 # --------------------------------------------------------------------------------------
 
 def build_features(orders: pd.DataFrame, val_frac: float = 0.15, test_frac: float = 0.15,
-                   alpha: float = 20.0) -> FeatureBundle:
+                   alpha: float = 20.0, leak: bool = False) -> FeatureBundle:
     """Engineer the leakage-safe feature matrix from raw orders.
 
     Parameters
@@ -126,6 +126,10 @@ def build_features(orders: pd.DataFrame, val_frac: float = 0.15, test_frac: floa
     val_frac, test_frac : chronological validation / test fractions (test keeps its
         natural RTO rate -- it is never resampled).
     alpha : smoothing strength for target encoding (shrinkage toward the train prior).
+    leak : if True, DELIBERATELY leak the label into the pincode/buyer target encodings
+        (full-dataset group mean incl. the row's own label — no out-of-fold, no time-split).
+        This is for the "leakage tax" demo ONLY: it inflates AUC to ~0.97 and is INVALID.
+        Never use ``leak=True`` for a real model.
     """
     df = orders.copy()
     df["order_ts"] = pd.to_datetime(df["order_ts"])
@@ -145,9 +149,14 @@ def build_features(orders: pd.DataFrame, val_frac: float = 0.15, test_frac: floa
     df["order_hour"] = df["order_ts"].dt.hour
     df["order_dayofweek"] = df["order_ts"].dt.dayofweek
 
-    # --- leakage-safe target encoding + prior counts ---------------------------------
-    df["pincode_rto_enc"] = _expanding_target_encode(df, "pincode", "is_rto", train_prior, alpha)
-    df["buyer_rto_enc"] = _expanding_target_encode(df, "buyer_id", "is_rto", train_prior, alpha)
+    # --- target encoding + prior counts ----------------------------------------------
+    if leak:
+        # DELIBERATE LEAK (demo only): full-dataset group mean incl. the row's own label.
+        df["pincode_rto_enc"] = df.groupby("pincode")["is_rto"].transform("mean")
+        df["buyer_rto_enc"] = df.groupby("buyer_id")["is_rto"].transform("mean")
+    else:
+        df["pincode_rto_enc"] = _expanding_target_encode(df, "pincode", "is_rto", train_prior, alpha)
+        df["buyer_rto_enc"] = _expanding_target_encode(df, "buyer_id", "is_rto", train_prior, alpha)
     df["pincode_orders_prior_log"] = np.log1p(_expanding_count(df, "pincode"))
     df["buyer_orders_prior_log"] = np.log1p(_expanding_count(df, "buyer_id"))
 
@@ -166,6 +175,7 @@ def build_features(orders: pd.DataFrame, val_frac: float = 0.15, test_frac: floa
     meta = {
         "train_prior": train_prior,
         "alpha": alpha,
+        "leak": leak,
         "n_total": int(len(df)),
         "split_sizes": df["split"].value_counts().to_dict(),
         "test_rto_rate": float(df.loc[df["split"] == "test", "is_rto"].mean()),

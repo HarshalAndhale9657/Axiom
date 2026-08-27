@@ -171,3 +171,31 @@ class RiskEngine:
         return {"points": points, "tau_star": rep["tau_star"],
                 "block_all_cod_cost": rep["baselines"]["block_all_cod_cost"],
                 "approve_all_cost": rep["baselines"]["approve_all_cost"], "n": rep["n"]}
+
+    def leakage_report(self) -> dict:
+        """The 'leakage tax': Axiom's honest metrics vs a DELIBERATELY leaked model (INVALID).
+
+        Proves we can trivially manufacture the ~0.99 AUC that public RTO models brag about —
+        and chose the true, lower number instead. Trains the leaky model once and caches it.
+        """
+        if getattr(self, "_leakage", None):
+            return self._leakage
+        from sklearn.metrics import average_precision_score, roc_auc_score
+
+        from src.model.train import train_model
+
+        y = self.queue["is_rto"].to_numpy()
+        honest = {"roc_auc": round(float(roc_auc_score(y, self._proba)), 4),
+                  "pr_auc": round(float(average_precision_score(y, self._proba)), 4),
+                  "prevalence": round(float(y.mean()), 4)}
+
+        leaky_bundle = build_features(self.orders_raw, leak=True)  # same split, test untouched
+        leaky = train_model(leaky_bundle, params={"n_estimators": 300, "learning_rate": 0.05})
+        lt = leaky_bundle.frame[leaky_bundle.frame["split"] == "test"]
+        lp = leaky.model.predict_proba(lt[leaky_bundle.feature_columns])
+        ly = lt["is_rto"].to_numpy()
+        leaked = {"roc_auc": round(float(roc_auc_score(ly, lp)), 4),
+                  "pr_auc": round(float(average_precision_score(ly, lp)), 4),
+                  "prevalence": round(float(ly.mean()), 4)}
+        self._leakage = {"honest": honest, "leaky": leaked}
+        return self._leakage

@@ -9,6 +9,7 @@ import { inr, pct } from "@/lib/format";
 import { Card, Skeleton, Stat } from "@/components/ui";
 import ConfusionMatrix from "@/components/ConfusionMatrix";
 import DecisionFlow from "@/components/DecisionFlow";
+import LeakageTax from "@/components/LeakageTax";
 
 export default function CostEconomics() {
   const [data, setData] = useState<CostCurve | null>(null);
@@ -27,6 +28,7 @@ export default function CostEconomics() {
 
   return (
     <div className="space-y-4">
+      <LeakageTax />
       <div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
         <Card>
           <div className="p-5">

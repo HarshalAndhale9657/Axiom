@@ -86,3 +86,14 @@ def test_reproducible(bundle):
         bundle.frame[bundle.feature_columns].reset_index(drop=True),
         again.frame[again.feature_columns].reset_index(drop=True),
     )
+
+
+def test_leak_flag_actually_leaks_the_label():
+    """The 'leakage tax' demo path must genuinely leak (else the comparison is dishonest)."""
+    orders, _ = generate(n=4000, seed=0)
+    honest = build_features(orders, leak=False)
+    leaky = build_features(orders, leak=True)
+    honest_corr = abs(np.corrcoef(honest.frame["buyer_rto_enc"], honest.frame["is_rto"])[0, 1])
+    leaky_corr = abs(np.corrcoef(leaky.frame["buyer_rto_enc"], leaky.frame["is_rto"])[0, 1])
+    assert leaky_corr > 0.5, "leaked encoding should strongly reveal the label"
+    assert leaky_corr > honest_corr + 0.3, "leak must be dramatically stronger than as-of"
