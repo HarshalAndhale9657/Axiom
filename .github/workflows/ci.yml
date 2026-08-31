@@ -1,0 +1,78 @@
+# CI for Axiom. Two jobs, both required:
+#
+#  * `python` proves the risk pipeline is reproducible from a clean checkout — it
+#    regenerates the dataset, trains the model, and runs the leakage/economics guards. It
+#    deliberately does NOT reuse the committed model artifact: the claim is that anyone can
+#    rebuild these numbers, so CI rebuilds them.
+#  * `web` type-checks and builds the dashboard.
+#
+# No network access is needed: every LLM path has a deterministic fallback and the tests
+# force the actuator and the cross-vendor verifier into offline mode (tests/conftest.py).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: pipeline + tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Rebuild the dataset and model from scratch
+        run: |
+          python -m src.data.generate_synthetic_cod --n 20000 --seed 42
+          python -m src.model.train
+
+      # The evidence pack is built BEFORE the tests: tests/test_published_claims.py checks
+      # every number in the README against reports/evaluation.json, and skips without it.
+      - name: Regenerate the evidence pack and audit it
+        run: python -m src.model.full_report --boot 200 --check
+
+      - name: Tests (leakage, cost, bounded-action and published-claim guards)
+        run: pytest -q
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evaluation-report
+          path: |
+            reports/evaluation.json
+            reports/*.png
+
+  web:
+    name: dashboard build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run build
