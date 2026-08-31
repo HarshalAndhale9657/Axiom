@@ -6,7 +6,7 @@
 
 <p>
 <img alt="Razorpay AI Buildathon · Track 2" src="https://img.shields.io/badge/Razorpay%20AI%20Buildathon-Track%202%20·%20AI%20Risk%20Manager-2563eb">
-<img alt="tests" src="https://img.shields.io/badge/tests-161%20passing-16a34a">
+<img alt="tests" src="https://img.shields.io/badge/tests-175%20passing-16a34a">
 <img alt="python" src="https://img.shields.io/badge/python-3.10%2B-3776AB">
 <img alt="next.js" src="https://img.shields.io/badge/dashboard-Next.js%2016-111827">
 <img alt="posture" src="https://img.shields.io/badge/posture-defense--only-475569">
@@ -117,7 +117,7 @@ A genuine tier-3 buyer is **3.8× more likely** to be challenged than a tier-1 b
 
 ## Quickstart
 
-**Prerequisites:** Python 3.10+, Node 18+. A free **Gemini** key is optional — the agent and reason codes fall back to deterministic output without one, and everything still runs.
+**Prerequisites:** Python 3.10+, Node 20.9+ (required by Next 16). A free **Gemini** key is optional — the agent and reason codes fall back to deterministic output without one, and everything still runs.
 
 ```bash
 # 1) Backend
@@ -175,7 +175,7 @@ Python · **LightGBM** + **IsolationForest** · **SHAP** · **FastAPI** · **SQL
 Dependencies are deliberately minimal — every package in `requirements.txt` is actually imported. The LLM layer speaks HTTPS directly, so no vendor SDK is required; the policy retriever is TF-IDF over a small corpus, so no vector database is required.
 
 ## Testing
-`pytest -q` → **161 tests**, including the leakage guards (first-sighting encoding == prior, outcome-lag monotonicity, velocity independence), a hand-checked rupee cost example, the frozen-threshold-never-beats-the-oracle invariant, paired-bootstrap determinism, closed-action-space checks, and API/audit round-trips. CI additionally rebuilds the dataset and model from scratch and re-audits every published number.
+`pytest -q` → **175 tests**, including the leakage guards (first-sighting encoding == prior, outcome-lag monotonicity, velocity independence), a hand-checked rupee cost example, the frozen-threshold-never-beats-the-oracle invariant, paired-bootstrap determinism, closed-action-space checks, and API/audit round-trips. CI additionally rebuilds the dataset and model from scratch and re-audits every published number.
 
 ## Repo map
 `src/` — `data` · `features` · `model` · `rules` · `agent` · `rag` · `graph` · `actions` · `audit` · `api` · `web/` — the dashboard · `docs/` — plan, policy, evaluation, figures · `notebooks/` — the runnable evaluation.

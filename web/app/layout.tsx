@@ -32,7 +32,11 @@ export const viewport = { colorScheme: "light dark" as const, themeColor: "#0a0e
 // there is no flash of the wrong theme on a return visit.
 const themeScript = `try{if(localStorage.getItem('axiom-theme')==='dark'){document.documentElement.classList.add('dark')}}catch(e){}`;
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+// Typed explicitly rather than with Next's generated `LayoutProps<"/">` global. That
+// helper lives in .next/types/, which is a build artifact and therefore absent on a
+// clean checkout — so `tsc --noEmit` failed in CI while passing locally, where a stale
+// .next/ happened to exist. A root layout only ever receives children; say so.
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
       <head>
