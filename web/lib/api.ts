@@ -78,6 +78,11 @@ export interface CopilotAnswer {
   grounded: boolean;
 }
 
+export interface Interval {
+  lo: number;
+  hi: number;
+}
+
 export interface Metrics {
   n: number;
   prevalence: number;
@@ -85,7 +90,24 @@ export interface Metrics {
   roc_auc: number;
   precision_at_10pct: number;
   tau_star: number;
-  at_tau_star: { precision: number; recall: number; flag_rate: number };
+  /** "val_frozen" when the threshold was fitted on validation (the only reportable case). */
+  tau_source?: "val_frozen" | "test_oracle";
+  at_tau_star: { cost: number; precision: number; recall: number; flag_rate: number; tp: number; fp: number; fn: number; tn: number };
+  /** Best cost tuning the threshold ON the test split could have reached — never quoted as a result. */
+  oracle?: { tau: number; cost: number; cost_per_1k: number; note: string };
+  /** What that shortcut would have been worth, published so the reader can see we declined it. */
+  optimism?: { cost_gap: number; cost_gap_per_1k: number; gap_pct_of_model_cost: number };
+  ci?: {
+    n_boot: number;
+    pr_auc: Interval;
+    roc_auc: Interval;
+    cost_per_1k: Interval;
+    saving_per_1k_vs_block_all_cod: Interval;
+    precision: Interval;
+    recall: Interval;
+  };
+  thresholds?: BandThresholds | null;
+  band_policy?: BandPolicy;
   money: {
     model_cost_per_1k: number;
     block_all_cod_cost_per_1k: number;
@@ -113,9 +135,120 @@ export interface CostPoint {
 export interface CostCurve {
   points: CostPoint[];
   tau_star: number;
+  tau_source?: "val_frozen" | "test_oracle";
+  tau_low?: number;
+  tau_high?: number;
+  oracle_tau?: number;
+  oracle_cost?: number;
+  optimism_cost_gap_per_1k?: number;
   block_all_cod_cost: number;
   approve_all_cost: number;
   n: number;
+}
+
+/** The frozen operating point, fitted on validation at train time. */
+export interface BandThresholds {
+  tau_low: number;
+  tau_high: number;
+  tau_star: number;
+  fitted_on: string;
+  n_fitted: number;
+  cost_model: Record<string, number>;
+  action_model: Record<string, number>;
+  note: string;
+}
+
+export interface BandPolicy {
+  cost_per_1k: number;
+  friction_cost: number;
+  residual_rto_cost: number;
+  n_green: number;
+  n_amber: number;
+  n_red: number;
+  green_rto_rate: number | null;
+  amber_rto_rate: number | null;
+  red_rto_rate: number | null;
+  tau_low: number;
+  tau_high: number;
+}
+
+export interface ThresholdReport {
+  thresholds: BandThresholds | null;
+  band_policy: BandPolicy;
+  legacy_hardcoded_band_policy: BandPolicy;
+  saving_per_1k_vs_hardcoded: number;
+  sensitivity: { amber_efficacy: number; red_efficacy: number; amber_friction_frac: number; tau_low: number; tau_high: number }[];
+  note: string;
+}
+
+export interface BaselineRow {
+  model: string;
+  tau_val_fitted: number;
+  pr_auc: number | null;
+  roc_auc: number | null;
+  brier: number;
+  cost_per_1k: number;
+  saving_per_1k_vs_block_all_cod: number;
+  champion_gain_pr_auc_lo?: number | null;
+  champion_gain_pr_auc_hi?: number | null;
+  champion_beats_pr_auc?: boolean | null;
+  champion_gain_cost_per_1k_lo?: number | null;
+  champion_gain_cost_per_1k_hi?: number | null;
+}
+export interface BaselineReport {
+  rows: BaselineRow[];
+  note: string;
+}
+
+export interface SliceRow {
+  dimension: string;
+  slice: string;
+  n: number;
+  rto_rate: number;
+  flag_rate: number;
+  n_good: number;
+  false_positives: number;
+  fp_rate_on_good: number;
+  recall: number | null;
+  precision: number | null;
+  fp_cost: number;
+  fn_cost: number;
+}
+export interface DisparityRow {
+  dimension: string;
+  worst_slice: string;
+  worst_fp_rate_on_good: number;
+  best_slice: string;
+  best_fp_rate_on_good: number;
+  /** null when the safest slice had no false positives at all — an undefined ratio. */
+  ratio: number | null;
+  unbounded: boolean;
+}
+export interface SliceReport {
+  tau: number;
+  slices: SliceRow[];
+  worst: SliceRow[];
+  disparity: DisparityRow[];
+  note: string;
+}
+
+export interface ModelMeta {
+  model_version: string;
+  algorithm: string;
+  n_features: number;
+  features: string[];
+  data_provenance: string;
+  n_orders: number;
+  split: Record<string, string | number>;
+  train_prior_rto: number;
+  test_rto_rate_natural: number;
+  outcome_lag_days: number;
+  target_encoding_alpha: number;
+  thresholds: BandThresholds | null;
+  protected_attributes_used: string[];
+  pii_used: string[];
+  intended_use: string;
+  out_of_scope: string[];
 }
 
 export interface LeakageMetrics {
@@ -256,6 +389,10 @@ export const api = {
   metrics: () => get<Metrics>(`/metrics`),
   costcurve: () => get<CostCurve>(`/costcurve`),
   leakage: () => get<Leakage>(`/leakage`),
+  thresholds: () => get<ThresholdReport>(`/thresholds`),
+  baselines: () => get<BaselineReport>(`/baselines`),
+  slices: () => get<SliceReport>(`/slices`),
+  modelMeta: () => get<ModelMeta>(`/model_meta`),
   rings: () => get<RingsResponse>(`/rings`),
   ringGraph: (id: string) => get<RingGraphData>(`/rings/${id}`),
   health: () => get<{ status: string }>(`/`),

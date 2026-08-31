@@ -63,7 +63,7 @@ export default function TopBar({
           {m ? (
             <>
               <Kpi label="PR-AUC" value={<CountUp value={m.pr_auc} format={(n) => n.toFixed(3)} />} sub={`${lift}× baseline`} />
-              <Kpi label="Cost-optimal threshold" value={<CountUp value={m.tau_star} format={(n) => n.toFixed(2)} />} sub="τ* · vs naive 0.50" />
+              <Kpi label="Operating threshold" value={<CountUp value={m.tau_star} format={(n) => n.toFixed(2)} />} sub="τ fitted on val · vs naive 0.50" />
               <Kpi label="Saved / 1k orders" value={<CountUp value={m.money.rupees_saved_per_1k_vs_block_all_cod} format={(n) => inr(n, true)} />} sub="vs block-all-COD" />
               <Kpi label="Cost reduction" value={<CountUp value={m.money.savings_vs_block_all_cod_pct} format={(n) => `${n.toFixed(0)}%`} />} sub="lower total cost" />
             </>

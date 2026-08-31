@@ -23,9 +23,11 @@ from src.features.build_features import build_features
 from src.model.anomaly import AnomalyDetector
 from src.model.evaluation import CostModel, cost_curve, report
 from src.model.explain import RTOExplainer
+from src.model.threshold import band_policy_cost, load_thresholds, sensitivity
 from src.model.train import load
 from src.rag.policy import PolicyRetriever
 from src.rules.decision_core import DecisionConfig, decide_from_row
+from src.util import to_jsonable
 
 _ORDER_FIELDS = ["payment_method", "order_value", "product_category", "city", "city_tier",
                  "pincode", "distance_km", "address_text", "address_completeness",
@@ -63,8 +65,15 @@ class RiskEngine:
         self.retriever = PolicyRetriever()
         self.audit = AuditStore(audit_path)
         self.cost = CostModel()
-        self.config = DecisionConfig()
+        # The operating point comes from models/thresholds.json — fitted on the validation
+        # split at train time and frozen. If it is missing we fall back to the module
+        # defaults and say so, rather than silently inventing cut-points.
+        self.thresholds = load_thresholds(model_dir)
+        self.config = (DecisionConfig(tau_low=self.thresholds.tau_low,
+                                      tau_high=self.thresholds.tau_high)
+                       if self.thresholds else DecisionConfig())
         self._provider = provider
+        self._metrics_cache: dict | None = None
 
         self.queue = self.bundle.frame[self.bundle.frame["split"] == "test"].reset_index(drop=True)
         self._proba = self.model.predict_proba(self.queue[self.feature_cols])
@@ -147,8 +156,15 @@ class RiskEngine:
         test batch: gross recovered (prevented-RTO cost on interventions that would have RTO'd),
         the friction cost incurred on genuine customers, and the resulting net.
         """
-        from src.agent.batch import (BatchConfig, BatchState, in_quiet_hours, is_intervention,
-                                      recovered_and_cost, stop_reason, update_state)
+        from src.agent.batch import (
+            BatchConfig,
+            BatchState,
+            in_quiet_hours,
+            is_intervention,
+            recovered_and_cost,
+            stop_reason,
+            update_state,
+        )
 
         config = config or BatchConfig()
         zero = {"stopped": True, "processed": 0, "amber_seen": 0, "interventions": 0,
@@ -263,13 +279,107 @@ class RiskEngine:
     def audit_log(self, limit: int = 100) -> list[dict]:
         return self.audit.list_decisions(limit)
 
-    def metrics(self) -> dict:
-        """Honest evaluation numbers (BMR cost story) for the dashboard header."""
+    def metrics(self, n_boot: int = 500) -> dict:
+        """Honest evaluation numbers (BMR cost story) for the dashboard header.
+
+        Scored at the **frozen** threshold from ``models/thresholds.json`` (fitted on the
+        validation split), with bootstrap intervals and the optimism gap against the
+        test-optimal oracle we deliberately do not use. Cached: the numbers are a property
+        of a fixed model on a fixed split, so recomputing them per request would only burn
+        CPU.
+        """
+        if self._metrics_cache is not None:
+            return self._metrics_cache
         rep = report(self.queue["is_rto"].to_numpy(), self._proba,
                      self.queue["order_value"].to_numpy(), self.queue["is_cod"].to_numpy(),
-                     self.cost)
+                     self.cost, tau=self.thresholds.tau_star if self.thresholds else None,
+                     n_boot=n_boot)
         rep.pop("_curve", None)
-        return rep
+        rep["thresholds"] = self.thresholds.as_dict() if self.thresholds else None
+        rep["band_policy"] = band_policy_cost(
+            self.queue["is_rto"].to_numpy(), self._proba,
+            self.queue["order_value"].to_numpy(),
+            self.config.tau_low, self.config.tau_high, self.cost)
+        self._metrics_cache = to_jsonable(rep)
+        return self._metrics_cache
+
+    def threshold_report(self) -> dict:
+        """Where the cut-points come from, and how far they move if our assumptions do."""
+        value = self.queue["order_value"].to_numpy()
+        sweep = sensitivity(value)
+        band = self.metrics()["band_policy"]
+        # What the previously hard-coded 0.15/0.45 band would have cost on the same split —
+        # the price of the magic numbers we removed.
+        legacy = band_policy_cost(self.queue["is_rto"].to_numpy(), self._proba, value,
+                                  0.15, 0.45, self.cost)
+        return to_jsonable({
+            "thresholds": self.thresholds.as_dict() if self.thresholds else None,
+            "band_policy": band,
+            "legacy_hardcoded_band_policy": legacy,
+            "saving_per_1k_vs_hardcoded": legacy["cost_per_1k"] - band["cost_per_1k"],
+            "sensitivity": sweep.to_dict(orient="records"),
+            "note": ("Band cut-points are derived in closed form from the cost model and the "
+                     "assumed efficacy of each bounded action; the sensitivity grid shows how "
+                     "far they move across the plausible range of those assumptions."),
+        })
+
+    def baseline_report(self, n_boot: int = 300) -> dict:
+        """Is the ML worth it? LightGBM vs a scorecard vs logistic regression."""
+        if getattr(self, "_baselines_cache", None):
+            return self._baselines_cache
+        from src.model.baselines import compare
+
+        table = compare(self.bundle, self.model, self.cost, n_boot=n_boot)
+        self._baselines_cache = to_jsonable({
+            "rows": table,
+            "note": ("Identical features and splits for every contender; each is isotonically "
+                     "calibrated on validation and given its own validation-fitted rupee "
+                     "threshold. Gaps carry paired bootstrap intervals."),
+        })
+        return self._baselines_cache
+
+    def slice_report(self) -> dict:
+        """Failure-mode matrix: which good customers absorb the false positives."""
+        if getattr(self, "_slices_cache", None):
+            return self._slices_cache
+        from src.model.slices import disparity, slice_report, worst_slices
+
+        tau = self.thresholds.tau_star if self.thresholds else self.config.tau_high
+        rep = slice_report(self.queue, self._proba, tau, self.cost)
+        self._slices_cache = to_jsonable({
+            "tau": tau,
+            "slices": rep,
+            "worst": worst_slices(rep),
+            "disparity": disparity(rep),
+            "note": ("Operational harm audit, not a legal fairness audit: the model uses no "
+                     "protected attribute. 'fp_rate_on_good' is the share of genuine customers "
+                     "in a slice that were put through friction."),
+        })
+        return self._slices_cache
+
+    def model_meta(self) -> dict:
+        """Provenance and reproducibility card for the served artifact."""
+        meta = self.bundle.meta
+        return to_jsonable({
+            "model_version": self.model_version,
+            "algorithm": "LightGBM (binary) + isotonic calibration fitted on validation",
+            "n_features": len(self.feature_cols),
+            "features": self.feature_cols,
+            "data_provenance": "synthetic — causal COD/RTO generator (seed 42), disclosed",
+            "n_orders": meta.get("n_total"),
+            "split": {"policy": "chronological (never shuffled)", **meta.get("split_sizes", {})},
+            "train_prior_rto": meta.get("train_prior"),
+            "test_rto_rate_natural": meta.get("test_rto_rate"),
+            "outcome_lag_days": meta.get("outcome_lag_days"),
+            "target_encoding_alpha": meta.get("alpha"),
+            "thresholds": self.thresholds.as_dict() if self.thresholds else None,
+            "protected_attributes_used": [],
+            "pii_used": [],
+            "intended_use": "Ranking COD orders for RTO risk to select a bounded, defensive, "
+                            "reversible action. Decision support with human override.",
+            "out_of_scope": ["credit decisions", "permanent bans", "any offensive use",
+                             "deployment on real orders without recalibration on real data"],
+        })
 
     def cost_curve_points(self, n_grid: int = 60) -> dict:
         """The BMR cost curve as plottable points, for the interactive threshold slider."""
@@ -284,9 +394,13 @@ class RiskEngine:
              "fp_cost": round(float(r.fp_cost)), "fn_cost": round(float(r.fn_cost))}
             for r in curve.itertuples()
         ]
-        return {"points": points, "tau_star": rep["tau_star"],
+        return to_jsonable({"points": points, "tau_star": rep["tau_star"],
+                "tau_source": rep.get("tau_source"),
+                "tau_low": self.config.tau_low, "tau_high": self.config.tau_high,
+                "oracle_tau": rep["oracle"]["tau"], "oracle_cost": rep["oracle"]["cost"],
+                "optimism_cost_gap_per_1k": rep["optimism"]["cost_gap_per_1k"],
                 "block_all_cod_cost": rep["baselines"]["block_all_cod_cost"],
-                "approve_all_cost": rep["baselines"]["approve_all_cost"], "n": rep["n"]}
+                "approve_all_cost": rep["baselines"]["approve_all_cost"], "n": rep["n"]})
 
     def leakage_report(self) -> dict:
         """The 'leakage tax': Axiom's honest metrics vs a DELIBERATELY leaked model (INVALID).

@@ -9,7 +9,14 @@ Endpoints (all read the held-out test split as the live order queue):
     POST /batch/run                     autonomous batch over the amber queue (honest ₹ recovered)
     POST /decisions/{id}/override       human-in-the-loop override (immutable)
     GET  /audit?limit=                  the immutable audit trail
-    GET  /metrics                       honest BMR cost-story numbers
+    GET  /metrics                       honest BMR cost-story numbers (frozen τ + CIs)
+    GET  /costcurve                     the rupee cost curve for the threshold slider
+    GET  /leakage                       honest vs deliberately-leaked model comparison
+    GET  /thresholds                    where the cut-points come from + assumption sweep
+    GET  /baselines                     is the ML worth it? scorecard / logistic / LightGBM
+    GET  /slices                        failure-mode matrix: who absorbs the false positives
+    GET  /model_meta                    provenance + reproducibility card
+    GET  /rings, /rings/{id}            unsupervised shared-device fraud rings
 """
 from __future__ import annotations
 
@@ -144,6 +151,26 @@ def costcurve() -> dict:
 @app.get("/leakage")
 def leakage() -> dict:
     return get_engine().leakage_report()
+
+
+@app.get("/thresholds")
+def thresholds() -> dict:
+    return get_engine().threshold_report()
+
+
+@app.get("/baselines")
+def baselines() -> dict:
+    return get_engine().baseline_report()
+
+
+@app.get("/slices")
+def slices() -> dict:
+    return get_engine().slice_report()
+
+
+@app.get("/model_meta")
+def model_meta() -> dict:
+    return get_engine().model_meta()
 
 
 @app.get("/rings")

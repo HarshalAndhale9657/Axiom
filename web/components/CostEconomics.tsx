@@ -34,8 +34,10 @@ export default function CostEconomics() {
           <div className="p-5">
             <h3 className="text-sm font-semibold text-ink">BMR cost curve</h3>
             <p className="mb-3 text-xs text-muted">
-              Total business cost (₹ per 1,000 orders) vs decision threshold. The cost-optimal
-              <b className="text-blue-500"> τ* = {data ? data.tau_star.toFixed(2) : "…"}</b> sits far below the naive 0.50.
+              Total business cost (₹ per 1,000 orders) vs decision threshold, on the held-out test split. The shipped
+              threshold <b className="text-blue-500">τ = {data ? data.tau_star.toFixed(2) : "…"}</b> was fitted on the
+              <b className="text-ink"> validation</b> split and frozen — it is deliberately <i>not</i> this curve&apos;s
+              minimum. Both sit far below the naive 0.50.
             </p>
             <div className="h-72 w-full">
               {!data ? (
@@ -55,7 +57,11 @@ export default function CostEconomics() {
                     <ReferenceLine y={Math.round(per1k(data.block_all_cod_cost))} stroke="#fb7185" strokeDasharray="4 4"
                       label={{ value: "block-all-COD", position: "insideTopRight", fontSize: 10, fill: "#fb7185" }} />
                     <ReferenceLine x={0.5} stroke="var(--faint)" label={{ value: "naive 0.5", position: "top", fontSize: 10, fill: "var(--faint)" }} />
-                    <ReferenceLine x={data.tau_star} stroke="#3b82f6" strokeDasharray="5 3" label={{ value: "τ*", position: "top", fontSize: 11, fill: "#3b82f6" }} />
+                    {data.oracle_tau !== undefined && (
+                      <ReferenceLine x={data.oracle_tau} stroke="#fca5a5" strokeDasharray="2 3"
+                        label={{ value: "test-oracle (unused)", position: "insideBottomLeft", fontSize: 10, fill: "#fca5a5" }} />
+                    )}
+                    <ReferenceLine x={data.tau_star} stroke="#3b82f6" strokeDasharray="5 3" label={{ value: "τ (val)", position: "top", fontSize: 11, fill: "#3b82f6" }} />
                     <ReferenceLine x={tau} stroke="var(--ink)" />
                     <Line type="monotone" dataKey="cost" stroke="#3b82f6" strokeWidth={2.5} dot={false} isAnimationActive={false} />
                   </LineChart>
@@ -89,13 +95,19 @@ export default function CostEconomics() {
                 </div>
                 <div className="rounded-xl bg-surface2 p-3 text-xs text-muted">
                   {data && Math.abs(tau - data.tau_star) <= 0.01 ? (
-                    <>This is the cost-optimal operating point <b className="text-ink">τ*</b> — minimum total rupee cost.</>
+                    <>The shipped operating point, fitted on validation and frozen before this split was scored.</>
                   ) : data && tau > data.tau_star ? (
-                    <>Above τ*: fewer flags, but more missed RTOs → cost rises.</>
+                    <>Above the shipped τ: fewer flags, but more missed RTOs → cost rises.</>
                   ) : (
-                    <>Below τ*: more flags → more false-positive friction on good customers → cost rises.</>
+                    <>Below the shipped τ: more flags → more false-positive friction on good customers → cost rises.</>
                   )}
                 </div>
+                {data?.optimism_cost_gap_per_1k !== undefined && (
+                  <div className="flex items-center justify-between rounded-xl border border-line bg-surface2/50 px-3 py-2 text-xs">
+                    <span className="text-muted">Optimism declined (tuning τ on test)</span>
+                    <span className="font-semibold text-ink">{inr(data.optimism_cost_gap_per_1k)}/1k</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between rounded-xl border border-rose-500/20 bg-rose-500/5 px-3 py-2 text-xs">
                   <span className="text-rose-500">Naive “block all COD”</span>
                   <span className="font-semibold text-rose-500">{data ? inr(per1k(data.block_all_cod_cost)) : "…"}/1k</span>

@@ -5,8 +5,15 @@ import json
 
 import pytest
 
-from src.agent.batch import (BatchConfig, BatchState, in_quiet_hours, is_intervention,
-                             recovered_and_cost, stop_reason, update_state)
+from src.agent.batch import (
+    BatchConfig,
+    BatchState,
+    in_quiet_hours,
+    is_intervention,
+    recovered_and_cost,
+    stop_reason,
+    update_state,
+)
 from src.agent.llm import MockProvider
 from src.api.service import RiskEngine
 from src.data.generate_synthetic_cod import generate
