@@ -112,38 +112,136 @@ def calibration_table(y: np.ndarray, proba: np.ndarray, n_bins: int = 10) -> pd.
     return g
 
 
+def confusion_at(y: np.ndarray, proba: np.ndarray, tau: float) -> dict:
+    """Confusion cells + precision/recall at one fixed threshold."""
+    y = np.asarray(y, dtype=bool)
+    flag = np.asarray(proba, dtype=float) >= tau
+    tp, fp = int(np.sum(flag & y)), int(np.sum(flag & ~y))
+    fn, tn = int(np.sum(~flag & y)), int(np.sum(~flag & ~y))
+    pos = tp + fn
+    return {
+        "tp": tp, "fp": fp, "fn": fn, "tn": tn,
+        "precision": tp / (tp + fp) if (tp + fp) else float("nan"),
+        "recall": tp / pos if pos else float("nan"),
+        "flag_rate": float(np.mean(flag)),
+    }
+
+
+def bootstrap_ci(y: np.ndarray, proba: np.ndarray, order_value: np.ndarray,
+                 is_cod: np.ndarray, tau: float, cm: CostModel | None = None,
+                 n_boot: int = 500, alpha: float = 0.05, seed: int = 42) -> dict:
+    """Percentile bootstrap intervals for the headline numbers.
+
+    Resamples test **orders** with replacement (``n_boot`` times) and recomputes every
+    statistic on each resample. Crucially the model and the baselines are scored on the
+    *same* resample, so the interval on the *difference* is paired — that is the number
+    that decides whether "cheaper than block-all-COD" is real or noise.
+
+    A point estimate without an interval is not an honest metric: PR-AUC on ~3k rows at
+    17% prevalence carries a couple of points of sampling error either way, and we would
+    rather state that than have a judge estimate it for us.
+    """
+    cm = cm or CostModel()
+    y = np.asarray(y).astype(int)
+    proba = np.asarray(proba, dtype=float)
+    order_value = np.asarray(order_value, dtype=float)
+    is_cod = np.asarray(is_cod).astype(bool)
+    n = len(y)
+    rng = np.random.default_rng(seed)
+
+    keys = ("pr_auc", "roc_auc", "cost_per_1k", "saving_per_1k_vs_block_all_cod",
+            "precision", "recall")
+    draws: dict[str, list[float]] = {k: [] for k in keys}
+
+    for _ in range(n_boot):
+        idx = rng.integers(0, n, n)
+        yb, pb, vb, cb = y[idx], proba[idx], order_value[idx], is_cod[idx]
+        if yb.sum() == 0 or yb.sum() == len(yb):
+            continue                            # degenerate resample; no AUC is defined
+        flag = pb >= tau
+        model_cost = total_cost(flag, yb, vb, cm)
+        block_cost = total_cost(cb, yb, vb, cm)
+        conf = confusion_at(yb, pb, tau)
+        draws["pr_auc"].append(average_precision_score(yb, pb))
+        draws["roc_auc"].append(roc_auc_score(yb, pb))
+        draws["cost_per_1k"].append(model_cost / len(yb) * 1000.0)
+        draws["saving_per_1k_vs_block_all_cod"].append(
+            (block_cost - model_cost) / len(yb) * 1000.0)
+        draws["precision"].append(conf["precision"])
+        draws["recall"].append(conf["recall"])
+
+    lo_q, hi_q = 100 * alpha / 2, 100 * (1 - alpha / 2)
+    out = {"n_boot": n_boot, "alpha": alpha, "seed": seed}
+    for key, vals in draws.items():
+        arr = np.asarray(vals, dtype=float)
+        arr = arr[np.isfinite(arr)]
+        out[key] = ({"lo": float(np.percentile(arr, lo_q)),
+                     "hi": float(np.percentile(arr, hi_q))} if arr.size else
+                    {"lo": float("nan"), "hi": float("nan")})
+    return out
+
+
 def report(y: np.ndarray, proba: np.ndarray, order_value: np.ndarray, is_cod: np.ndarray,
-           cm: CostModel | None = None) -> dict:
-    """The full honest report on a held-out set, including the money story vs baselines."""
+           cm: CostModel | None = None, tau: float | None = None,
+           n_boot: int = 0, seed: int = 42) -> dict:
+    """The full honest report on a held-out set, including the money story vs baselines.
+
+    Parameters
+    ----------
+    tau : the **frozen operating threshold**, fitted on validation (see
+        :mod:`src.model.threshold`). Pass it. When it is ``None`` the function falls back
+        to the test-optimal threshold, which is an *oracle*: it is reported as such and
+        must never be quoted as an achievable result.
+    n_boot : bootstrap resamples for the confidence intervals (0 = skip; the CLI and the
+        evaluation report use 500).
+
+    The returned dict always contains ``oracle`` (the best cost tuning-on-test *could*
+    have reached) and ``optimism`` (what that shortcut would have been worth). Publishing
+    the gap is the point: it shows the number we quote is the one we could actually ship.
+    """
     cm = cm or CostModel()
     y = np.asarray(y).astype(int)
     order_value = np.asarray(order_value, dtype=float)
     is_cod = np.asarray(is_cod).astype(bool)
+    n = len(y)
 
     curve = cost_curve(y, proba, order_value, cm)
-    best = curve.loc[curve["cost"].idxmin()]
+    oracle_row = curve.loc[curve["cost"].idxmin()]
+    oracle_tau, oracle_cost = float(oracle_row["threshold"]), float(oracle_row["cost"])
+
+    tau_source = "val_frozen" if tau is not None else "test_oracle"
+    op_tau = float(tau) if tau is not None else oracle_tau
+    conf = confusion_at(y, proba, op_tau)
+    model_cost = total_cost(np.asarray(proba) >= op_tau, y, order_value, cm)
+
     bmr = example_dependent_bmr(y, proba, order_value, cm)
 
     # naive baselines (no model)
     approve_all = total_cost(np.zeros_like(y, bool), y, order_value, cm)   # flag none
     block_all_cod = total_cost(is_cod, y, order_value, cm)                 # flag every COD
-    model_cost = float(best["cost"])
-    n = len(y)
 
     def per_1k(c: float) -> float:
         return c / n * 1000.0
 
-    return {
+    out = {
         "n": n,
         "prevalence": float(y.mean()),
         "pr_auc": float(average_precision_score(y, proba)),
         "roc_auc": float(roc_auc_score(y, proba)),
         "precision_at_10pct": precision_at_k(y, proba, 0.10),
-        "tau_star": float(best["threshold"]),
-        "at_tau_star": {
-            "cost": model_cost, "precision": float(best["precision"]),
-            "recall": float(best["recall"]), "flag_rate": float(best["flag_rate"]),
-            "tp": int(best["tp"]), "fp": int(best["fp"]), "fn": int(best["fn"]),
+        "tau_star": op_tau,                    # the threshold actually applied
+        "tau_source": tau_source,
+        "at_tau_star": {"cost": model_cost, **conf},
+        "oracle": {
+            "tau": oracle_tau, "cost": oracle_cost, "cost_per_1k": per_1k(oracle_cost),
+            "note": "best achievable by tuning the threshold ON the test set — NOT a "
+                    "reportable result; shown only to quantify the optimism we avoided.",
+        },
+        "optimism": {
+            "cost_gap": model_cost - oracle_cost,
+            "cost_gap_per_1k": per_1k(model_cost - oracle_cost),
+            "gap_pct_of_model_cost": (100.0 * (model_cost - oracle_cost) / model_cost
+                                      if model_cost else float("nan")),
         },
         "bmr_example_dependent": bmr,
         "baselines": {
@@ -162,6 +260,10 @@ def report(y: np.ndarray, proba: np.ndarray, order_value: np.ndarray, is_cod: np
         },
         "_curve": curve,  # kept for plotting; underscore = not for the headline dict dump
     }
+    if n_boot:
+        out["ci"] = bootstrap_ci(y, proba, order_value, is_cod, op_tau, cm,
+                                 n_boot=n_boot, seed=seed)
+    return out
 
 
 def save_plots(y: np.ndarray, proba: np.ndarray, rep: dict, out_dir: str | Path = "reports") -> list[Path]:
@@ -179,13 +281,17 @@ def save_plots(y: np.ndarray, proba: np.ndarray, rep: dict, out_dir: str | Path 
     # 1) cost-vs-threshold with tau* and baselines
     fig, ax = plt.subplots(figsize=(7, 4.2))
     ax.plot(curve["threshold"], curve["cost"], color="#1f77b4", lw=2, label="model")
+    frozen = "τ (fitted on val)" if rep.get("tau_source") == "val_frozen" else "τ*"
     ax.axvline(rep["tau_star"], color="#d62728", ls="--",
-               label=f"τ* = {rep['tau_star']:.3f}")
+               label=f"{frozen} = {rep['tau_star']:.3f}")
+    if rep.get("tau_source") == "val_frozen":
+        ax.axvline(rep["oracle"]["tau"], color="#ff9896", ls="-.", lw=1.2,
+                   label=f"test-oracle τ = {rep['oracle']['tau']:.3f} (not used)")
     ax.axhline(rep["baselines"]["block_all_cod_cost"], color="#7f7f7f", ls=":",
                label="block-all-COD")
     ax.axvline(0.5, color="#bbbbbb", ls="-", lw=0.8, label="naive 0.5")
     ax.set(xlabel="decision threshold τ", ylabel="total cost (₹)",
-           title="BMR cost curve — τ* minimises rupee cost, far below 0.5")
+           title="BMR cost curve — τ fitted on validation, far below the naive 0.5")
     ax.legend(fontsize=8)
     fig.tight_layout()
     p = out_dir / "cost_curve.png"
@@ -232,43 +338,65 @@ def main() -> None:
     from src.util import enable_utf8_stdout
 
     enable_utf8_stdout()
+    from src.model.threshold import fit_thresholds, load_thresholds
+
     ap = argparse.ArgumentParser(description="Honest cost-based evaluation for Axiom.")
     ap.add_argument("--in", dest="inp", default="data/cod_orders.csv")
     ap.add_argument("--model-dir", default="models")
     ap.add_argument("--plots", action="store_true", help="save figures to reports/")
+    ap.add_argument("--boot", type=int, default=500, help="bootstrap resamples (0 = skip)")
     args = ap.parse_args()
 
     artifact = load(args.model_dir)
     model = artifact["model"]
     orders = pd.read_csv(args.inp)
     bundle = build_features(orders)
-    test = bundle.frame[bundle.frame["split"] == "test"]
+    val, test = (bundle.frame[bundle.frame["split"] == s] for s in ("val", "test"))
     proba = model.predict_proba(test[bundle.feature_columns])
 
-    rep = report(test["is_rto"].to_numpy(), proba, test["order_value"].to_numpy(),
-                 test["is_cod"].to_numpy())
+    # The operating threshold is fitted on VAL (or reused from the saved artifact) and
+    # then frozen: the test split below is scored exactly once, at that value.
+    thresholds = load_thresholds(args.model_dir) or fit_thresholds(
+        val["is_rto"].to_numpy(), model.predict_proba(val[bundle.feature_columns]),
+        val["order_value"].to_numpy())
 
-    m, at, mon = rep, rep["at_tau_star"], rep["money"]
+    rep = report(test["is_rto"].to_numpy(), proba, test["order_value"].to_numpy(),
+                 test["is_cod"].to_numpy(), tau=thresholds.tau_star, n_boot=args.boot)
+
+    m, at, mon, ci = rep, rep["at_tau_star"], rep["money"], rep.get("ci", {})
+
+    def pm(key: str, fmt: str = "{:.3f}") -> str:
+        c = ci.get(key)
+        return "" if not c else f"  [95% CI {fmt.format(c['lo'])}–{fmt.format(c['hi'])}]"
+
     print("=" * 78)
-    print("AXIOM — honest cost-based evaluation (held-out TEST split)")
+    print("AXIOM — honest cost-based evaluation (held-out TEST split, scored once)")
     print("=" * 78)
     print(f"n={m['n']:,}   prevalence(RTO)={m['prevalence']:.3f}   "
-          f"PR-AUC={m['pr_auc']:.3f}   ROC-AUC={m['roc_auc']:.3f}   "
           f"P@10%={m['precision_at_10pct']:.3f}")
+    print(f"  PR-AUC  {m['pr_auc']:.3f}{pm('pr_auc')}")
+    print(f"  ROC-AUC {m['roc_auc']:.3f}{pm('roc_auc')}")
     print("-" * 78)
-    print(f"BMR τ*            : {m['tau_star']:.3f}   (naive default would be 0.500)")
-    print(f"  at τ*           : precision={at['precision']:.3f}  recall={at['recall']:.3f}  "
+    print(f"operating τ       : {m['tau_star']:.3f}  (fitted on VAL, frozen; naive default 0.500)")
+    print(f"  at τ            : precision={at['precision']:.3f}{pm('precision')}")
+    print(f"                    recall={at['recall']:.3f}{pm('recall')}   "
           f"flag_rate={at['flag_rate']:.3f}  (TP={at['tp']} FP={at['fp']} FN={at['fn']})")
+    print(f"  test-oracle τ   : {m['oracle']['tau']:.3f} -> ₹{m['oracle']['cost_per_1k']:,.0f}/1k")
+    print(f"  optimism tax    : ₹{m['optimism']['cost_gap_per_1k']:,.0f}/1k "
+          f"({m['optimism']['gap_pct_of_model_cost']:.1f}%) — the gain we did NOT take by "
+          "tuning on test")
     print("-" * 78)
     print("THE MONEY STORY  (₹ per 1,000 orders — lower is better)")
     print(f"  approve everything      : ₹{mon['approve_all_cost_per_1k']:,.0f}")
     print(f"  block ALL COD (naive)   : ₹{mon['block_all_cod_cost_per_1k']:,.0f}")
-    print(f"  Axiom @ τ*              : ₹{mon['model_cost_per_1k']:,.0f}")
+    print(f"  Axiom @ frozen τ        : ₹{mon['model_cost_per_1k']:,.0f}"
+          f"{pm('cost_per_1k', '{:,.0f}')}")
     print(f"  --> saves ₹{mon['rupees_saved_per_1k_vs_block_all_cod']:,.0f} per 1,000 orders "
-          f"vs block-all-COD  ({mon['savings_vs_block_all_cod_pct']:.1f}% lower)")
+          f"vs block-all-COD  ({mon['savings_vs_block_all_cod_pct']:.1f}% lower)"
+          f"{pm('saving_per_1k_vs_block_all_cod', '{:,.0f}')}")
     print(f"  --> {mon['savings_vs_approve_all_pct']:.1f}% lower cost than approving everything")
     print("-" * 78)
-    print("accuracy intentionally NOT reported. τ* chosen by rupee cost, not a default.")
+    print("accuracy intentionally NOT reported. τ is cost-chosen on validation, never on test.")
 
     if args.plots:
         paths = save_plots(test["is_rto"].to_numpy(), proba, rep)

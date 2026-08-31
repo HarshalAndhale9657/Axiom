@@ -1,0 +1,20 @@
+{
+  "tau_low": 0.26156940398712825,
+  "tau_high": 0.4993597712481539,
+  "tau_star": 0.315,
+  "fitted_on": "val",
+  "n_fitted": 3000,
+  "cost_model": {
+    "fn_fixed": 200.0,
+    "fn_value_frac": 0.15,
+    "fp_fixed": 40.0,
+    "fp_value_frac": 0.1
+  },
+  "action_model": {
+    "amber_friction_frac": 0.25,
+    "amber_efficacy": 0.35,
+    "red_friction_frac": 1.0,
+    "red_efficacy": 0.9
+  },
+  "note": "Fitted on the validation split only; the test split is scored once at these frozen values."
+}

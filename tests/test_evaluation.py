@@ -9,8 +9,14 @@ import numpy as np
 
 from src.data.generate_synthetic_cod import generate
 from src.features.build_features import build_features
-from src.model.evaluation import (CostModel, cost_curve, example_dependent_bmr,
-                                   precision_at_k, report, total_cost)
+from src.model.evaluation import (
+    CostModel,
+    cost_curve,
+    example_dependent_bmr,
+    precision_at_k,
+    report,
+    total_cost,
+)
 from src.model.train import train_model
 
 

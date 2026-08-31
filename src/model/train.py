@@ -142,10 +142,18 @@ def main() -> None:
     ap.add_argument("--model-dir", default="models")
     args = ap.parse_args()
 
+    from src.model.threshold import fit_thresholds, save_thresholds, sensitivity
+
     orders = pd.read_csv(args.inp)
     bundle = build_features(orders)
     result = train_model(bundle)
     path = save(result, args.model_dir)
+
+    # Freeze the operating point on VAL, right here, before anyone looks at test again.
+    X_val, y_val = bundle.split("val")
+    thresholds = fit_thresholds(y_val.to_numpy(), result.model.predict_proba(X_val),
+                                bundle.frame.loc[X_val.index, "order_value"].to_numpy())
+    threshold_path = save_thresholds(thresholds, args.model_dir)
 
     print("=" * 74)
     print("AXIOM — baseline calibrated LightGBM (RTO risk)")
@@ -158,7 +166,19 @@ def main() -> None:
     for name, imp in result.importances.head(10).items():
         print(f"    {name:<30} {int(imp)}")
     print("-" * 74)
+    print("OPERATING POINT — fitted on VAL only, then frozen (test is scored once, later):")
+    print(f"    binary τ*        : {thresholds.tau_star:.3f}")
+    print(f"    band cut-points  : green < {thresholds.tau_low:.3f} <= amber < "
+          f"{thresholds.tau_high:.3f} <= red")
+    band_range = sensitivity(bundle.frame.loc[X_val.index, "order_value"].to_numpy())
+    print(f"    assumption sweep : τ_low ∈ [{band_range['tau_low'].min():.2f}, "
+          f"{band_range['tau_low'].max():.2f}], τ_high ∈ [{band_range['tau_high'].min():.2f}, "
+          f"{band_range['tau_high'].max():.2f}] across plausible action-efficacy values")
+    print(f"    outcome lag      : {bundle.meta['outcome_lag_days']:.0f} days "
+          "(label-derived history is held back this long)")
+    print("-" * 74)
     print(f"saved -> {path}")
+    print(f"saved -> {threshold_path}")
     print("NOTE: accuracy is intentionally NOT reported (useless under imbalance). "
           "The BMR rupee cost curve is the headline — see the evaluation notebook.")
 
