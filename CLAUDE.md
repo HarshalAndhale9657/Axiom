@@ -15,10 +15,16 @@ This file tells Claude Code how to work in this repo. **The plan of record is [P
 - Any resampling (SMOTE/class-weights) happens **inside** the CV pipeline on the **training fold only** (`imblearn.Pipeline`).
 - **Calibrate** probabilities (isotonic) — the whole cost story depends on it.
 - Headline metric is **PR-AUC + the BMR rupee cost curve**, *never* accuracy.
+- **The operating threshold is a hyper-parameter: fit it on validation, freeze it, score test once.** Never quote the minimum of a cost curve swept on the test split — that is an oracle. `src/model/threshold.py` owns this; the optimism gap is published, not hidden.
+- **Respect the outcome-availability lag** (`outcome_lag_days`, default 7). A label-derived feature may only count orders whose outcome had already resolved — an order placed today cannot know whether yesterday's was returned.
+- **Every headline number needs an interval** (`bootstrap_ci`) and a **non-trivial baseline** (`src/model/baselines.py`). Where an interval spans zero, report the null result.
 - If unsure whether something leaks, assume it does and verify.
 
+## Published numbers are generated, not typed
+`python -m src.model.full_report` regenerates `docs/evaluation.md`, the figures and `reports/evaluation.json`; `--check` audits the pack. `tests/test_published_claims.py` tests the README against that JSON. **After any retrain, re-run the report and fix whatever the claim tests flag** — never edit a number by hand.
+
 ## Tech stack
-Python 3.10+ · **LightGBM** (primary) + **IsolationForest** (anomaly layer) · **SHAP** · **FastAPI** · provider-agnostic **LLM (Gemini free)** · **ChromaDB** (policy RAG) · **SQLite** (audit) · **Next.js** dashboard (Streamlit fallback).
+Python 3.10+ · **LightGBM** (primary) + **IsolationForest** (anomaly layer) · **SHAP** · **FastAPI** · provider-agnostic **LLM (Gemini free, OpenAI fail-over)** · **TF-IDF** policy RAG (ChromaDB was dropped — the corpus is small and the dependency was not earned) · **NetworkX** ring detection · **SQLite** (append-only audit) · **Next.js 16** dashboard.
 
 ## Repo map
 - `PLAN.md` — master plan (strategy, architecture, day-by-day). **Source of truth.**
@@ -26,14 +32,18 @@ Python 3.10+ · **LightGBM** (primary) + **IsolationForest** (anomaly layer) · 
 - `docs/conventions/` — `python.md`, `ml-practices.md`, `testing.md`.
 - `docs/policy/rto_cod_risk_policy.md` — risk rules **and** the agent's RAG knowledge base.
 - `docs/architecture.md`, `docs/evaluation.md` — design + the honest-metrics writeup.
-- `src/` — `data` · `features` · `model` · `rules` · `agent` · `rag` · `audit` · `api`.
+- `src/` — `data` · `features` · `model` (train · evaluation · **threshold** · **baselines** · **slices** · **full_report** · explain · anomaly) · `rules` · `agent` · `rag` · `graph` · `actions` · `audit` · `api`.
+- `MODEL_CARD.md` — intended use, limitations, ethical considerations. `docs/pitch.md` — the 5-min pitch beat sheet.
 - `notebooks/` — EDA + the crown-jewel `03_evaluation.ipynb`.
 
-## Commands (fill in as we build)
+## Commands
 - Setup: `pip install -r requirements.txt`
 - Generate data: `python -m src.data.generate_synthetic_cod --n 20000 --seed 42`
-- Tests: `pytest tests/ -v`
-- (train / serve API / run web: TBD as built)
+- Tests: `pytest -q`
+- Train + freeze thresholds: `python -m src.model.train`
+- Regenerate every published number: `python -m src.model.full_report`
+- Rebuild and re-audit everything: `make verify`
+- Serve API: `uvicorn src.api.main:app --reload` · Dashboard: `npm --prefix web run dev`
 
 ## Code style
 - Type hints on function signatures; f-strings; Python 3.10+.
@@ -49,4 +59,5 @@ Python 3.10+ · **LightGBM** (primary) + **IsolationForest** (anomaly layer) · 
 - **Verify before claiming** — run the test/command and show output before saying something works.
 
 ## Status
-Planning complete (**PLAN.md v2**). Scaffolding + project docs in place. **Next build step: the synthetic COD data generator.** See `docs/project/PROGRESS.md`.
+Feature-complete and evaluation-hardened (**175 tests green**). Detector, bounded agent, cross-vendor verifier, batch mode, copilot, ring graph, real Razorpay test-mode actions, immutable audit, Next.js console, CI, Docker, model card, generated evidence pack.
+**Remaining before the ~5 Sep deadline: record the 5-min pitch (`docs/pitch.md`), add README screenshots, submit early.** Scope is frozen — do not add features. See `docs/project/PROGRESS.md`.
