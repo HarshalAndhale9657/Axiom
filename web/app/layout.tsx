@@ -5,14 +5,32 @@ import "./globals.css";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
+const DESCRIPTION =
+  "Axiom scores COD/RTO risk, explains it, investigates borderline cases against policy, " +
+  "and drives bounded, auditable action. Risk decisions you can prove.";
+
 export const metadata: Metadata = {
   title: "Axiom — AI Risk Manager",
-  description:
-    "Axiom scores COD/RTO risk, explains it, investigates borderline cases against policy, and drives bounded, auditable action. Risk decisions you can prove.",
+  description: DESCRIPTION,
+  applicationName: "Axiom",
+  // The submission gets shared as a link; an unfurl with no title reads as unfinished.
+  openGraph: {
+    title: "Axiom — AI Risk Manager for COD / RTO fraud",
+    description: DESCRIPTION,
+    type: "website",
+    siteName: "Axiom",
+  },
+  twitter: { card: "summary_large_image", title: "Axiom — AI Risk Manager", description: DESCRIPTION },
 };
 
-// Set the theme class before paint to avoid a flash of the wrong theme.
-const themeScript = `try{var t=localStorage.getItem('axiom-theme');if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches)){document.documentElement.classList.add('dark')}}catch(e){}`;
+// Drives the browser UI (address bar, form controls) and matches the light-first default.
+export const viewport = { colorScheme: "light dark" as const, themeColor: "#0a0e16" };
+
+// Light is the default. Dark is applied only when the visitor has explicitly chosen it,
+// so a first-time viewer (a judge opening the link) always lands on the light console
+// rather than inheriting whatever their OS happens to be set to. Runs before paint, so
+// there is no flash of the wrong theme on a return visit.
+const themeScript = `try{if(localStorage.getItem('axiom-theme')==='dark'){document.documentElement.classList.add('dark')}}catch(e){}`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

@@ -1,23 +1,25 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from "recharts";
 import { api, type CostCurve } from "@/lib/api";
 import { inr, pct } from "@/lib/format";
-import { Card, Skeleton, Stat } from "@/components/ui";
+import { useAsync } from "@/lib/useAsync";
+import { Card, ErrorState, Skeleton, Stat } from "@/components/ui";
 import ConfusionMatrix from "@/components/ConfusionMatrix";
 import DecisionFlow from "@/components/DecisionFlow";
 import LeakageTax from "@/components/LeakageTax";
 
 export default function CostEconomics() {
-  const [data, setData] = useState<CostCurve | null>(null);
-  const [tau, setTau] = useState(0.21);
-
-  useEffect(() => {
-    api.costcurve().then((c) => { setData(c); setTau(c.tau_star); }).catch(() => {});
-  }, []);
+  const state = useAsync<CostCurve>(() => api.costcurve(), "costcurve");
+  const data = state.data;
+  // The slider starts at the shipped threshold and stays there until the reader moves
+  // it. Derived rather than synced through an effect, so there is no render where the
+  // chart and the readout disagree.
+  const [dragged, setDragged] = useState<number | null>(null);
+  const tau = dragged ?? data?.tau_star ?? 0.21;
 
   const nearest = useMemo(() => {
     if (!data) return null;
@@ -40,7 +42,9 @@ export default function CostEconomics() {
               minimum. Both sit far below the naive 0.50.
             </p>
             <div className="h-72 w-full">
-              {!data ? (
+              {state.error ? (
+                <ErrorState message={state.error.message} onRetry={state.reload} compact />
+              ) : !data ? (
                 <Skeleton className="h-full w-full" />
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
@@ -71,11 +75,22 @@ export default function CostEconomics() {
 
             <div className="mt-4">
               <div className="mb-1 flex justify-between text-xs text-muted">
-                <span>Drag the operating threshold</span>
+                <label htmlFor="tau-slider">Drag the operating threshold</label>
                 <span className="text-ink">τ = <span className="font-mono">{tau.toFixed(2)}</span></span>
               </div>
-              <input type="range" min={0.02} max={0.98} step={0.01} value={tau}
-                onChange={(e) => setTau(Number(e.target.value))} className="axiom-range w-full" disabled={!data} />
+              <input
+                id="tau-slider"
+                type="range"
+                min={0.02}
+                max={0.98}
+                step={0.01}
+                value={tau}
+                onChange={(e) => setDragged(Number(e.target.value))}
+                className="axiom-range w-full"
+                disabled={!data}
+                aria-label="Decision threshold"
+                aria-valuetext={`threshold ${tau.toFixed(2)}`}
+              />
             </div>
           </div>
         </Card>

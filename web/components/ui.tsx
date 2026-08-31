@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Moon, Sun } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { AlertTriangle, Moon, RefreshCw, Sun } from "lucide-react";
 import type { Band } from "@/lib/api";
 import { bandTheme } from "@/lib/format";
 
@@ -41,7 +41,11 @@ export function Button({
 
 export function Spinner({ className = "" }: { className?: string }) {
   return (
-    <span className={`inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent ${className}`} />
+    <span
+      role="status"
+      aria-label="Loading"
+      className={`inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent ${className}`}
+    />
   );
 }
 
@@ -97,7 +101,56 @@ export function KeyVal({ k, v }: { k: string; v: ReactNode }) {
 }
 
 export function Skeleton({ className = "" }: { className?: string }) {
-  return <div className={`skeleton rounded-lg ${className}`} />;
+  return <div className={`skeleton rounded-lg ${className}`} aria-hidden="true" />;
+}
+
+/**
+ * What a panel shows when its request failed.
+ *
+ * The old behaviour was `.catch(() => {})`, which leaves a skeleton shimmering forever —
+ * the panel looks like it is still working, so nobody realises the backend is down. On a
+ * live demo that is the difference between "one moment, let me restart the API" and
+ * standing in silence. Says what broke and offers the retry.
+ */
+export function ErrorState({
+  message, onRetry, compact = false,
+}: {
+  message?: string; onRetry?: () => void; compact?: boolean;
+}) {
+  return (
+    <div
+      role="alert"
+      className={`flex flex-col items-center justify-center gap-2 text-center ${compact ? "p-5" : "p-10"}`}
+    >
+      <AlertTriangle className="h-5 w-5 text-amber-500" aria-hidden="true" />
+      <p className="text-sm font-medium text-ink">Could not load this panel</p>
+      <p className="max-w-sm text-xs text-muted">
+        {message || "The Axiom API did not respond. Check that the backend is running."}
+      </p>
+      {onRetry && (
+        <Button variant="ghost" onClick={onRetry} className="mt-1">
+          <RefreshCw className="h-3.5 w-3.5" /> Retry
+        </Button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Renders exactly one of loading / error / content, so no panel can invent a fourth state
+ * (the "shimmering forever" one). `skeleton` lets each panel keep its own shaped loader.
+ */
+export function Async<T>({
+  state, skeleton, children, compact,
+}: {
+  state: { data: T | null; error: Error | null; loading: boolean; reload: () => void };
+  skeleton: ReactNode;
+  children: (data: T) => ReactNode;
+  compact?: boolean;
+}) {
+  if (state.error) return <ErrorState message={state.error.message} onRetry={state.reload} compact={compact} />;
+  if (state.data === null) return <>{skeleton}</>;
+  return <>{children(state.data)}</>;
 }
 
 /* ---- animated number ---- */
@@ -126,22 +179,38 @@ export function CountUp({ value, format }: { value: number; format: (n: number) 
   return <>{format(v)}</>;
 }
 
+/* The active theme lives on <html>, which is an external store as far as React is
+   concerned: an inline script in the document head sets it before first paint so there
+   is no flash. useSyncExternalStore is the sanctioned way to read that — it gives the
+   server the light default, the client the real value, and no mount effect. */
+const themeStore = {
+  subscribe(onChange: () => void) {
+    const observer = new MutationObserver(onChange);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  },
+  get: () => document.documentElement.classList.contains("dark"),
+  getServer: () => false, // light is the default
+};
+
 export function ThemeToggle() {
-  const [dark, setDark] = useState(false);
-  useEffect(() => setDark(document.documentElement.classList.contains("dark")), []);
-  const toggle = () => {
-    const d = !dark;
-    setDark(d);
-    document.documentElement.classList.toggle("dark", d);
-    try { localStorage.setItem("axiom-theme", d ? "dark" : "light"); } catch {}
-  };
+  const dark = useSyncExternalStore(themeStore.subscribe, themeStore.get, themeStore.getServer);
+
+  const toggle = useCallback(() => {
+    const next = !document.documentElement.classList.contains("dark");
+    document.documentElement.classList.toggle("dark", next);
+    try { localStorage.setItem("axiom-theme", next ? "dark" : "light"); } catch {}
+  }, []);
+
   return (
     <button
       onClick={toggle}
-      aria-label="Toggle theme"
+      aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
+      aria-pressed={dark}
+      title={dark ? "Light theme" : "Dark theme"}
       className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-white/10 text-slate-200 ring-1 ring-white/15 transition hover:bg-white/20"
     >
-      {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      {dark ? <Sun className="h-4 w-4" aria-hidden="true" /> : <Moon className="h-4 w-4" aria-hidden="true" />}
     </button>
   );
 }

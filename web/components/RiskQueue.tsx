@@ -38,6 +38,7 @@ export default function RiskQueue({
           <button
             key={f.key}
             onClick={() => setFilter(f.key)}
+            aria-pressed={filter === f.key}
             className={`rounded-lg px-2.5 py-1 text-xs font-medium transition ${
               filter === f.key ? "bg-blue-600 text-white" : "bg-surface2 text-muted hover:text-ink"
             }`}
@@ -56,6 +57,7 @@ export default function RiskQueue({
                 <button
                   key={o.order_id}
                   onClick={() => onSelect(o.order_id)}
+                  aria-current={active ? "true" : undefined}
                   className={`mb-1 w-full rounded-xl border px-3 py-2.5 text-left transition ${
                     active
                       ? "border-blue-400/40 bg-blue-500/10 ring-1 ring-blue-400/30"
@@ -65,7 +67,9 @@ export default function RiskQueue({
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-mono text-xs font-medium text-ink">{o.order_id}</span>
                     <div className="flex items-center gap-1.5">
-                      {o.requires_human && <UserCog className="h-3.5 w-3.5 text-rose-500" />}
+                      {o.requires_human && (
+                        <UserCog className="h-3.5 w-3.5 text-rose-500" aria-label="Needs a human reviewer" />
+                      )}
                       <BandPill band={o.band} />
                     </div>
                   </div>

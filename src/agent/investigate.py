@@ -65,6 +65,10 @@ class AgentDecision:
     evidence: list[ToolCall]
     retrieved_policy: list[str]
     source: str  # "llm" | "fallback"
+    # The vendor/model that actually served this decision. Recorded because the provider
+    # chain can fail over (Gemini -> OpenAI), and a UI badge that says "Gemini" when OpenAI
+    # answered is exactly the kind of small untruth this project exists to avoid.
+    served_by: str | None = None
     verification: dict | None = None  # independent cross-vendor verdict, if any
 
     def as_dict(self) -> dict:
@@ -74,7 +78,7 @@ class AgentDecision:
             "policy_citations": self.policy_citations,
             "evidence": [c.as_dict() for c in self.evidence],
             "retrieved_policy": self.retrieved_policy, "source": self.source,
-            "verification": self.verification,
+            "served_by": self.served_by, "verification": self.verification,
         }
 
 
@@ -115,7 +119,8 @@ def _fallback(ctx: OrderContext, calls: list[ToolCall], snippets: list[str],
                buyer_prior_orders=ctx.buyer_prior_orders, buyer_prior_rto=ctx.buyer_prior_rto,
                anomaly_score=ctx.anomaly_score, device_id=ctx.device_id, config=config)
     return AgentDecision(d.action, d.confidence, d.reason, d.requires_human,
-                         d.policy_citations, calls, snippets, "fallback")
+                         d.policy_citations, calls, snippets, "fallback",
+                         served_by="deterministic rules")
 
 
 def _attach_verification(dec: AgentDecision, ctx: OrderContext, verifier,
@@ -149,6 +154,19 @@ def _attach_verification(dec: AgentDecision, ctx: OrderContext, verifier,
             dec.requires_human = True
 
 
+def _served_by(prov: LLMProvider) -> str:
+    """Human-readable name of the model that answered, for an honest UI badge."""
+    from src.agent.llm import FallbackProvider, provider_vendor
+
+    vendor = provider_vendor(prov)
+    inner = prov
+    if isinstance(prov, FallbackProvider):
+        inner = next((p for v, p in prov.providers if v == vendor), prov)
+    model = getattr(inner, "model", None)
+    label = {"google": "Gemini", "openai": "OpenAI", "mock": "mock provider"}.get(vendor, vendor)
+    return f"{label} · {model}" if model else label
+
+
 def investigate(ctx: OrderContext, retriever: PolicyRetriever, *,
                 provider: LLMProvider | None = None,
                 config: DecisionConfig | None = None, verifier="auto") -> AgentDecision:
@@ -170,7 +188,7 @@ def investigate(ctx: OrderContext, retriever: PolicyRetriever, *,
             citations = [c for c in data.get("policy_citations", []) if isinstance(c, str)]
             dec = AgentDecision(action, confidence, str(data.get("rationale", "")).strip(),
                                 bool(data.get("requires_human", False)), citations,
-                                calls, snippets, "llm")
+                                calls, snippets, "llm", served_by=_served_by(prov))
     except (LLMError, json.JSONDecodeError, KeyError, TypeError, ValueError):
         dec = _fallback(ctx, calls, snippets, config)
     _attach_verification(dec, ctx, verifier, primary_provider=prov)

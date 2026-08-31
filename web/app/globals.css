@@ -1,15 +1,19 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Light — cool near-white neutrals (pair with a blue accent), deep-navy ink. */
+/* Light is the default theme — dark is opt-in via .dark on <html>.
+   Cool near-white neutrals (pair with a blue accent), deep-navy ink.
+   Every text token below clears WCAG AA (4.5:1) against --surface: --faint used to be
+   #8794aa, which measured 3.1:1 on white and is used at 10-11px all over the console. */
 :root {
   --app: #f6f8fc;
   --surface: #ffffff;
   --surface2: #eef2f8;
   --line: #e1e7f0;
-  --ink: #0d1526;
-  --muted: #54607a;
-  --faint: #8794aa;
+  --ink: #0d1526;      /* 17.6:1 */
+  --muted: #54607a;    /*  6.3:1 */
+  --faint: #6b7688;    /*  4.6:1 */
+  --focus: #2563eb;
 }
 
 /* Dark — elevated, slightly blue-tinted neutrals (GitHub/Radix style), not pure black. */
@@ -18,9 +22,10 @@
   --surface: #111722;
   --surface2: #19212f;
   --line: #273143;
-  --ink: #e9edf4;
-  --muted: #9aa5b8;
-  --faint: #647085;
+  --ink: #e9edf4;      /* 14.9:1 */
+  --muted: #9aa5b8;    /*  7.7:1 */
+  --faint: #7c8899;    /*  5.1:1 */
+  --focus: #60a5fa;
 }
 
 @theme inline {
@@ -52,6 +57,28 @@ body {
 body,
 .themed {
   transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+
+/* Keyboard focus must always be visible. Tailwind's reset drops the UA outline, and this
+   console is dense with custom-styled buttons, so without this a keyboard user is lost. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+
+/* Respect the OS "reduce motion" setting: the console has count-ups, shimmer skeletons,
+   flow dots and a force-directed graph, which is a lot of movement for anyone who has
+   asked for less of it. Content still appears — only the movement stops. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 ::-webkit-scrollbar {

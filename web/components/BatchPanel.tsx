@@ -4,18 +4,22 @@ import { useState, type ReactNode } from "react";
 import { Bot, CircleSlash, Coins, Play, ShieldAlert, TriangleAlert } from "lucide-react";
 import { api, type BatchResult } from "@/lib/api";
 import { actionLabel, inr } from "@/lib/format";
-import { Button, Card, Spinner } from "@/components/ui";
+import { Button, Card, ErrorState, Spinner } from "@/components/ui";
 
 export default function BatchPanel() {
   const [maxOrders, setMaxOrders] = useState(25);
   const [running, setRunning] = useState(false);
   const [res, setRes] = useState<BatchResult | null>(null);
+  const [error, setError] = useState<Error | null>(null);
 
   async function run() {
     setRunning(true);
     setRes(null);
+    setError(null);
     try {
       setRes(await api.runBatch({ max_orders: maxOrders }));
+    } catch (e) {
+      setError(e instanceof Error ? e : new Error(String(e)));
     } finally {
       setRunning(false);
     }
@@ -42,8 +46,9 @@ export default function BatchPanel() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <label className="text-[11px] font-medium text-faint">Max orders</label>
+            <label htmlFor="batch-max-orders" className="text-[11px] font-medium text-faint">Max orders</label>
             <input
+              id="batch-max-orders"
               type="number"
               min={1}
               max={60}
@@ -58,8 +63,16 @@ export default function BatchPanel() {
         </div>
       </Card>
 
+      {error && (
+        <Card><ErrorState message={`The batch run failed: ${error.message}. Nothing was left half-applied — every decision is written only after it completes.`} onRetry={run} /></Card>
+      )}
+
       {running && !res && (
-        <Card><div className="p-8 text-center text-sm text-muted"><Spinner /> The agent is investigating amber orders one by one…</div></Card>
+        <Card>
+          <div className="p-8 text-center text-sm text-muted" aria-live="polite">
+            <Spinner /> The agent is investigating amber orders one by one…
+          </div>
+        </Card>
       )}
 
       {res && (

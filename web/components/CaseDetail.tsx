@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Bot, CheckCircle2, ExternalLink, FileSearch, Gavel, MessagesSquare, ScrollText, Send, ShieldAlert, ShieldCheck, Sparkles, Zap } from "lucide-react";
 import { api, type AgentResult, type CaseDetail as Detail, type ExecuteResult, type Factor } from "@/lib/api";
 import { actionLabel, bandTheme, inr, pct } from "@/lib/format";
-import { BandPill, Button, ConfidenceBar, Card, KeyVal, Skeleton, Spinner } from "@/components/ui";
+import { BandPill, Button, ConfidenceBar, Card, ErrorState, KeyVal, Skeleton, Spinner } from "@/components/ui";
 
 const ORDER_FACTS: [string, string, (v: string | number) => string][] = [
   ["payment_method", "Payment", (v) => String(v)],
@@ -29,8 +29,11 @@ function FactorBar({ f, max }: { f: Factor; max: number }) {
   const w = (Math.abs(f.shap) / max) * 50;
   const raises = f.direction === "raises";
   return (
-    <div className="flex items-center gap-2 py-1">
-      <div className="w-44 truncate text-xs text-muted" title={f.label}>{f.label}</div>
+    <div
+      className="flex items-center gap-2 py-1"
+      title={`${f.label}: ${raises ? "raises" : "lowers"} risk by ${Math.abs(f.shap).toFixed(2)}`}
+    >
+      <div className="w-44 truncate text-xs text-muted">{f.label}</div>
       <div className="relative h-3.5 flex-1 rounded bg-surface2">
         <div className="absolute left-1/2 top-0 h-full w-px bg-line" />
         <div
@@ -46,9 +49,9 @@ function FactorBar({ f, max }: { f: Factor; max: number }) {
 }
 
 export default function CaseDetail({
-  detail, loading, demoTick,
+  detail, loading, error, demoTick,
 }: {
-  detail: Detail | null; loading: boolean; demoTick?: number;
+  detail: Detail | null; loading: boolean; error?: boolean; demoTick?: number;
 }) {
   const [agent, setAgent] = useState<AgentResult | null>(null);
   const [investigating, setInvestigating] = useState(false);
@@ -61,19 +64,29 @@ export default function CaseDetail({
   const [chat, setChat] = useState<{ role: "user" | "bot"; text: string; citations?: string[]; grounded?: boolean }[]>([]);
   const [askQ, setAskQ] = useState("");
   const [asking, setAsking] = useState(false);
+  // Action-level failures (agent, override, execute) surface inline rather than vanishing
+  // into a swallowed promise — on a live demo a silent no-op is the worst outcome.
+  const [actionError, setActionError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setAgent(null); setOvDone(null); setOvReason(""); setOvAction("approve"); setExecRes(null); setChat([]);
-  }, [detail?.order_id]);
+  // NOTE: per-case state is reset by remounting — the parent passes `key={order_id}`.
+  // Clearing it in an effect instead would render one frame of the previous order's
+  // agent trace against the new order's header, which on a demo looks like a bug.
 
   // Demo auto-run: investigate, then override.
+  // Seeded from the tick at mount: this component is keyed by order id, so it remounts
+  // whenever the analyst selects a different case. Without this, every later selection
+  // would replay the demo's auto-investigate.
+  const handledTick = useRef(demoTick);
   useEffect(() => {
-    if (!demoTick || !detail) return;
+    if (!demoTick || demoTick === handledTick.current || !detail) return;
+    handledTick.current = demoTick;
     let cancelled = false;
     (async () => {
       setInvestigating(true);
       let res: AgentResult | null = null;
-      try { res = await api.investigate(detail.order_id); } finally { setInvestigating(false); }
+      try { res = await api.investigate(detail.order_id); }
+      catch { setActionError("The agent could not be reached during the demo run."); }
+      finally { setInvestigating(false); }
       if (!res || cancelled) return;
       setAgent(res);
       await new Promise((r) => setTimeout(r, 1700));
@@ -82,7 +95,8 @@ export default function CaseDetail({
       try {
         await api.override(res.decision_id, { reviewer: "analyst_1", to_action: "approve", reason: "Verified returning customer (demo)." });
         if (!cancelled) setOvDone("approve");
-      } finally { setSaving(false); }
+      } catch { /* surfaced by the inline banner below */ }
+      finally { setSaving(false); }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -98,7 +112,8 @@ export default function CaseDetail({
       </div>
     );
   }
-  if (!detail) return <Placeholder icon={<FileSearch className="h-8 w-8 text-faint" />} text="Select an order from the queue to inspect it." />;
+  if (error) return <ErrorState message="This case could not be loaded. The Axiom API may be down." />;
+  if (!detail) return <Placeholder icon={<FileSearch className="h-8 w-8 text-faint" aria-hidden="true" />} text="Select an order from the queue to inspect it." />;
 
   const d = detail.decision;
   const t = bandTheme[d.band];
@@ -110,21 +125,27 @@ export default function CaseDetail({
   async function runAgent() {
     if (!detail) return;
     setInvestigating(true);
+    setActionError(null);
     try { setAgent(await api.investigate(detail.order_id)); }
+    catch { setActionError("The agent could not be reached. Check the Axiom API and try again."); }
     finally { setInvestigating(false); }
   }
   async function submitOverride() {
     if (!agent) return;
     setSaving(true);
+    setActionError(null);
     try {
       await api.override(agent.decision_id, { reviewer: "analyst_1", to_action: ovAction, reason: ovReason || "manual review" });
       setOvDone(ovAction);
-    } finally { setSaving(false); }
+    } catch { setActionError("The override was not logged — nothing was written to the audit trail."); }
+    finally { setSaving(false); }
   }
   async function executeAction(action: string) {
     if (!detail) return;
     setExecuting(true);
+    setActionError(null);
     try { setExecRes(await api.execute(detail.order_id, action)); }
+    catch { setActionError("Could not create the payment link. No action was taken."); }
     finally { setExecuting(false); }
   }
   async function ask(question: string) {
@@ -161,6 +182,14 @@ export default function CaseDetail({
       </div>
 
       <div className="space-y-4 p-5">
+        {actionError && (
+          <div role="alert" className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-ink">
+            <ShieldAlert className="mt-px h-3.5 w-3.5 shrink-0 text-amber-500" aria-hidden="true" />
+            <span>{actionError}</span>
+            <button onClick={() => setActionError(null)} className="ml-auto text-faint hover:text-ink" aria-label="Dismiss">×</button>
+          </div>
+        )}
+
         <Card className={`${t.chip} ring-1`}>
           <div className="p-4">
             <div className="flex items-center justify-between">
@@ -265,8 +294,11 @@ export default function CaseDetail({
                 <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-3">
                   <div className="flex items-center justify-between">
                     <span className="text-lg font-semibold text-blue-500">{actionLabel(agent.action)}</span>
-                    <span className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${agent.source === "llm" ? "bg-blue-500/15 text-blue-500" : "bg-surface2 text-muted"}`}>
-                      {agent.source === "llm" ? "Gemini agent" : "Rule fallback"}
+                    <span
+                      className={`rounded-md px-2 py-0.5 text-[10px] font-medium ${agent.source === "llm" ? "bg-blue-500/15 text-blue-500" : "bg-surface2 text-muted"}`}
+                      title={agent.served_by ?? undefined}
+                    >
+                      {agent.source === "llm" ? (agent.served_by ?? "LLM agent") : "Rule fallback"}
                     </span>
                   </div>
                   <div className="mt-1"><ConfidenceBar value={agent.confidence} /></div>
@@ -335,10 +367,21 @@ export default function CaseDetail({
                     <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400"><CheckCircle2 className="h-4 w-4" /> Logged override → <b>{actionLabel(ovDone)}</b> (immutable audit).</div>
                   ) : (
                     <div className="flex flex-wrap items-center gap-2">
-                      <select value={ovAction} onChange={(e) => setOvAction(e.target.value)} className="rounded-lg border border-line bg-surface px-2 py-1.5 text-sm text-ink">
+                      <select
+                        value={ovAction}
+                        onChange={(e) => setOvAction(e.target.value)}
+                        aria-label="Override action"
+                        className="rounded-lg border border-line bg-surface px-2 py-1.5 text-sm text-ink"
+                      >
                         {OVERRIDE_ACTIONS.map((a) => <option key={a} value={a}>{actionLabel(a)}</option>)}
                       </select>
-                      <input value={ovReason} onChange={(e) => setOvReason(e.target.value)} placeholder="reason…" className="min-w-40 flex-1 rounded-lg border border-line bg-surface px-2 py-1.5 text-sm text-ink" />
+                      <input
+                        value={ovReason}
+                        onChange={(e) => setOvReason(e.target.value)}
+                        placeholder="reason…"
+                        aria-label="Reason for the override"
+                        className="min-w-40 flex-1 rounded-lg border border-line bg-surface px-2 py-1.5 text-sm text-ink"
+                      />
                       <Button variant="subtle" onClick={submitOverride} disabled={saving}>{saving ? <Spinner /> : "Log override"}</Button>
                     </div>
                   )}
@@ -364,7 +407,7 @@ export default function CaseDetail({
             )}
 
             {chat.length > 0 && (
-              <div className="mb-2 space-y-2">
+              <div className="mb-2 space-y-2" aria-live="polite">
                 {chat.map((m, i) => (
                   <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                     <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-[13px] ${
@@ -405,9 +448,13 @@ export default function CaseDetail({
                 value={askQ}
                 onChange={(e) => setAskQ(e.target.value)}
                 placeholder="Ask about this case…"
+                aria-label="Ask the analyst copilot about this case"
                 className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-2 text-sm text-ink"
               />
-              <Button type="submit" disabled={asking || !askQ.trim()}><Send className="h-4 w-4" /></Button>
+              <Button type="submit" disabled={asking || !askQ.trim()} className="shrink-0">
+                <Send className="h-4 w-4" aria-hidden="true" />
+                <span className="sr-only">Send question</span>
+              </Button>
             </form>
           </div>
         </Card>

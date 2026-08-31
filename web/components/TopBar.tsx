@@ -9,9 +9,9 @@ import { CountUp, Skeleton, ThemeToggle } from "@/components/ui";
 function Kpi({ label, value, sub }: { label: string; value: ReactNode; sub?: string }) {
   return (
     <div className="rounded-xl bg-white/[0.04] px-4 py-2.5 ring-1 ring-white/10">
-      <div className="text-[10px] font-medium uppercase tracking-wider text-slate-400">{label}</div>
+      <div className="text-[10px] font-medium uppercase tracking-wider text-slate-300">{label}</div>
       <div className="text-lg font-semibold leading-tight text-white">{value}</div>
-      {sub && <div className="text-[11px] text-slate-500">{sub}</div>}
+      {sub && <div className="text-[11px] text-slate-400">{sub}</div>}
     </div>
   );
 }
@@ -38,7 +38,7 @@ export default function TopBar({
                   AI Risk Manager
                 </span>
               </div>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-300">
                 COD / RTO fraud · <span className="italic">Risk decisions you can prove.</span>
               </p>
             </div>
@@ -47,6 +47,7 @@ export default function TopBar({
           <div className="flex items-center gap-2">
             <button
               onClick={onRunDemo}
+              aria-label={demoRunning ? "Stop the guided demo" : "Play the guided demo"}
               className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium ring-1 transition ${
                 demoRunning
                   ? "bg-rose-500/20 text-rose-200 ring-rose-400/30 hover:bg-rose-500/30"

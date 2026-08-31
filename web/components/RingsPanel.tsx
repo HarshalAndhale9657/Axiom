@@ -1,25 +1,27 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Network, ShieldCheck } from "lucide-react";
 import { api, type RingGraphData, type RingsResponse } from "@/lib/api";
 import { pct } from "@/lib/format";
-import { BandPill, Card, Skeleton } from "@/components/ui";
+import { useAsync } from "@/lib/useAsync";
+import { BandPill, Card, ErrorState, Skeleton } from "@/components/ui";
 import RingGraph from "@/components/RingGraph";
 
 export default function RingsPanel() {
-  const [data, setData] = useState<RingsResponse | null>(null);
-  const [sel, setSel] = useState<string | null>(null);
-  const [graph, setGraph] = useState<RingGraphData | null>(null);
+  const rings = useAsync<RingsResponse>(() => api.rings(), "rings");
+  const data = rings.data;
 
-  useEffect(() => {
-    api.rings().then((d) => { setData(d); if (d.rings[0]) setSel(d.rings[0].ring_id); }).catch(() => {});
-  }, []);
-  useEffect(() => {
-    if (!sel) return;
-    setGraph(null);
-    api.ringGraph(sel).then(setGraph).catch(() => {});
-  }, [sel]);
+  // The selection defaults to the first ring, derived rather than pushed into state by
+  // an effect — one less render, and no window where the header and the graph disagree.
+  const [picked, setPicked] = useState<string | null>(null);
+  const sel = picked ?? data?.rings[0]?.ring_id ?? null;
+
+  const graphState = useAsync<RingGraphData | null>(
+    () => (sel ? api.ringGraph(sel) : Promise.resolve(null)),
+    `ring:${sel ?? "none"}`,
+  );
+  const graph = graphState.data;
 
   const v = data?.validation;
 
@@ -48,6 +50,8 @@ export default function RingsPanel() {
                 <ShieldCheck className="mr-1 inline h-3.5 w-3.5" />{v.tp} true · {v.fp} false
               </div>
             </div>
+          ) : rings.error ? (
+            <span className="text-xs text-muted">validation unavailable</span>
           ) : (
             <Skeleton className="h-10 w-64" />
           )}
@@ -59,12 +63,20 @@ export default function RingsPanel() {
           <div className="p-4">
             <h4 className="mb-2 text-sm font-semibold text-ink">Detected rings</h4>
             <div className="space-y-1">
-              {!data
-                ? [0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)
-                : data.rings.map((r) => (
+              {rings.error ? (
+                <ErrorState message={rings.error.message} onRetry={rings.reload} compact />
+              ) : !data ? (
+                [0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-16 w-full" />)
+              ) : data.rings.length === 0 ? (
+                <p className="px-1 py-6 text-center text-xs text-faint">
+                  No shared-device clusters of three or more buyers were found.
+                </p>
+              ) : (
+                data.rings.map((r) => (
                     <button
                       key={r.ring_id}
-                      onClick={() => setSel(r.ring_id)}
+                      onClick={() => setPicked(r.ring_id)}
+                      aria-pressed={sel === r.ring_id}
                       className={`w-full rounded-xl border px-3 py-2.5 text-left transition ${
                         sel === r.ring_id
                           ? "border-blue-400/40 bg-blue-500/10 ring-1 ring-blue-400/30"
@@ -80,7 +92,8 @@ export default function RingsPanel() {
                       </div>
                       <div className="mt-0.5 text-[11px] text-faint">ring-risk {r.ring_risk.toFixed(2)}</div>
                     </button>
-                  ))}
+                  ))
+              )}
             </div>
           </div>
         </Card>
@@ -94,7 +107,15 @@ export default function RingsPanel() {
                 <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-rose-500" /> device</span>
               </div>
             </div>
-            {graph ? <RingGraph data={graph} /> : <Skeleton className="h-[420px] w-full" />}
+            {graphState.error ? (
+              <div className="rounded-xl bg-surface2">
+                <ErrorState message="The ring graph could not be loaded." onRetry={graphState.reload} compact />
+              </div>
+            ) : graph ? (
+              <RingGraph data={graph} />
+            ) : (
+              <Skeleton className="h-[420px] w-full" />
+            )}
             {graph && (
               <p className="mt-2 text-[11px] text-faint">
                 {graph.n_buyers} buyer accounts sharing {graph.n_devices} device{graph.n_devices > 1 ? "s" : ""} —

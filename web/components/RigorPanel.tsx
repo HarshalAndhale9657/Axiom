@@ -13,7 +13,7 @@
  *  3. which good customers absorb the friction, by slice.
  */
 
-import { useEffect, useState } from "react";
+
 import { AlertTriangle, BadgeCheck, FlaskConical, Info, Scale, ShieldQuestion } from "lucide-react";
 import {
   api,
@@ -23,7 +23,8 @@ import {
   type SliceReport,
   type ThresholdReport,
 } from "@/lib/api";
-import { Card, Skeleton } from "@/components/ui";
+import { useAsync } from "@/lib/useAsync";
+import { Card, ErrorState, Skeleton } from "@/components/ui";
 import { inr, pct } from "@/lib/format";
 
 function SectionHeading({ icon, title, subtitle }: { icon: React.ReactNode; title: string; subtitle: string }) {
@@ -48,7 +49,10 @@ function Interval({ lo, hi, format }: { lo?: number; hi?: number; format: (n: nu
 
 /* ---------------- 1. the threshold was frozen on validation ---------------- */
 
-function ThresholdHonesty({ metrics, report }: { metrics: Metrics | null; report: ThresholdReport | null }) {
+function ThresholdHonesty({ metrics, report, onRetry, failed }: {
+  metrics: Metrics | null; report: ThresholdReport | null; onRetry: () => void; failed: boolean;
+}) {
+  if (failed) return <Card><ErrorState onRetry={onRetry} /></Card>;
   if (!metrics || !report) return <Skeleton className="h-56 w-full" />;
   const frozen = metrics.tau_source === "val_frozen";
   const optimism = metrics.optimism?.cost_gap_per_1k ?? 0;
@@ -142,7 +146,10 @@ function ThresholdHonesty({ metrics, report }: { metrics: Metrics | null; report
 
 /* ---------------- 2. is the ML worth it ---------------- */
 
-function Ablation({ report }: { report: BaselineReport | null }) {
+function Ablation({ report, onRetry, failed }: {
+  report: BaselineReport | null; onRetry: () => void; failed: boolean;
+}) {
+  if (failed) return <Card><ErrorState onRetry={onRetry} compact /></Card>;
   if (!report) {
     return (
       <Card>
@@ -166,9 +173,12 @@ function Ablation({ report }: { report: BaselineReport | null }) {
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
+            <caption className="sr-only">
+              Every contender scored on identical terms on the held-out test split
+            </caption>
             <thead>
               <tr className="border-b border-line text-left text-[11px] uppercase tracking-wide text-faint">
-                <th className="py-2 pr-3 font-medium">Model</th>
+                <th scope="col" className="py-2 pr-3 font-medium">Model</th>
                 <th className="py-2 pr-3 text-right font-medium">τ (val)</th>
                 <th className="py-2 pr-3 text-right font-medium">PR-AUC</th>
                 <th className="py-2 pr-3 text-right font-medium">Brier</th>
@@ -234,7 +244,10 @@ function Ablation({ report }: { report: BaselineReport | null }) {
 
 /* ---------------- 3. who pays for the false positives ---------------- */
 
-function FailureModes({ report }: { report: SliceReport | null }) {
+function FailureModes({ report, onRetry, failed }: {
+  report: SliceReport | null; onRetry: () => void; failed: boolean;
+}) {
+  if (failed) return <Card><ErrorState onRetry={onRetry} compact /></Card>;
   if (!report) return <Skeleton className="h-64 w-full" />;
   const top = report.disparity[0];
 
@@ -265,9 +278,12 @@ function FailureModes({ report }: { report: SliceReport | null }) {
 
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
+            <caption className="sr-only">
+              Share of genuine customers put through friction, by slice
+            </caption>
             <thead>
               <tr className="border-b border-line text-left text-[11px] uppercase tracking-wide text-faint">
-                <th className="py-2 pr-3 font-medium">Slice</th>
+                <th scope="col" className="py-2 pr-3 font-medium">Slice</th>
                 <th className="py-2 pr-3 text-right font-medium">Good customers</th>
                 <th className="py-2 pr-3 text-right font-medium">Wrongly challenged</th>
                 <th className="py-2 pr-3 text-right font-medium">Rate</th>
@@ -349,30 +365,33 @@ function Provenance({ meta }: { meta: ModelMeta | null }) {
 /* ---------------- the tab ---------------- */
 
 export default function RigorPanel() {
-  const [metrics, setMetrics] = useState<Metrics | null>(null);
-  const [thresholds, setThresholds] = useState<ThresholdReport | null>(null);
-  const [baselines, setBaselines] = useState<BaselineReport | null>(null);
-  const [slices, setSlices] = useState<SliceReport | null>(null);
-  const [meta, setMeta] = useState<ModelMeta | null>(null);
+  // Five independent requests rather than one waterfall: the ablation trains two extra
+  // models server-side, so it is much the slowest, and it must not hold up the three
+  // exhibits that are ready immediately.
+  const metrics = useAsync<Metrics>(() => api.metrics(), "metrics");
+  const thresholds = useAsync<ThresholdReport>(() => api.thresholds(), "thresholds");
+  const baselines = useAsync<BaselineReport>(() => api.baselines(), "baselines");
+  const slices = useAsync<SliceReport>(() => api.slices(), "slices");
+  const meta = useAsync<ModelMeta>(() => api.modelMeta(), "model_meta");
 
-  useEffect(() => {
-    // Each lands independently: the ablation trains two extra models, so it is the slow one
-    // and should not hold up the rest of the screen.
-    api.metrics().then(setMetrics).catch(() => {});
-    api.thresholds().then(setThresholds).catch(() => {});
-    api.slices().then(setSlices).catch(() => {});
-    api.modelMeta().then(setMeta).catch(() => {});
-    api.baselines().then(setBaselines).catch(() => {});
-  }, []);
+  const retryAll = () => {
+    metrics.reload();
+    thresholds.reload();
+  };
 
   return (
     <div className="space-y-4">
-      <ThresholdHonesty metrics={metrics} report={thresholds} />
+      <ThresholdHonesty
+        metrics={metrics.data}
+        report={thresholds.data}
+        onRetry={retryAll}
+        failed={Boolean(metrics.error || thresholds.error)}
+      />
       <div className="grid gap-4 lg:grid-cols-2">
-        <Ablation report={baselines} />
-        <FailureModes report={slices} />
+        <Ablation report={baselines.data} onRetry={baselines.reload} failed={Boolean(baselines.error)} />
+        <FailureModes report={slices.data} onRetry={slices.reload} failed={Boolean(slices.error)} />
       </div>
-      <Provenance meta={meta} />
+      <Provenance meta={meta.data} />
     </div>
   );
 }

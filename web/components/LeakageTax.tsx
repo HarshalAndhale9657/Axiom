@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { AlertTriangle, ShieldCheck } from "lucide-react";
 import { api, type Leakage, type LeakageMetrics } from "@/lib/api";
-import { Card, Skeleton } from "@/components/ui";
+import { useAsync } from "@/lib/useAsync";
+import { Card, ErrorState, Skeleton } from "@/components/ui";
 
 function MetricCol({
   m, tone, badge, icon, note,
@@ -34,8 +34,8 @@ function MetricCol({
 }
 
 export default function LeakageTax() {
-  const [d, setD] = useState<Leakage | null>(null);
-  useEffect(() => { api.leakage().then(setD).catch(() => {}); }, []);
+  const state = useAsync<Leakage>(() => api.leakage(), "leakage");
+  const d = state.data;
 
   return (
     <Card>
@@ -45,7 +45,9 @@ export default function LeakageTax() {
           Public RTO models online brag ~0.99 ROC-AUC. That’s almost always <b className="text-ink">label leakage</b>.
           Here it is on our own data — we built the fake, then chose the true, lower number.
         </p>
-        {!d ? (
+        {state.error ? (
+          <ErrorState message={state.error.message} onRetry={state.reload} compact />
+        ) : !d ? (
           <div>
             <Skeleton className="h-28 w-full" />
             <p className="mt-2 text-[11px] text-faint">training the leaky model live to show the tax…</p>

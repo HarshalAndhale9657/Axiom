@@ -69,6 +69,8 @@ export interface AgentResult {
   evidence: ToolCall[];
   retrieved_policy: string[];
   source: "llm" | "fallback";
+  /** The model that actually answered — the provider chain can fail over, so never assume. */
+  served_by?: string | null;
   verification?: Verification | null;
 }
 

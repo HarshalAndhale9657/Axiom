@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import type { RingGraphData } from "@/lib/api";
 
@@ -20,10 +20,17 @@ export default function RingGraph({ data }: { data: RingGraphData }) {
     return () => ro.disconnect();
   }, []);
 
-  const gd = {
-    nodes: data.nodes.map((n) => ({ ...n })),
-    links: data.links.map((l) => ({ ...l })),
-  };
+  // react-force-graph mutates the objects it is given (it writes x/y/vx/vy onto them) and
+  // restarts the simulation whenever the identity of `graphData` changes. Building a fresh
+  // copy on every render therefore re-ran the layout on any unrelated parent update, which
+  // made the graph visibly jump. Copy once per ring instead.
+  const gd = useMemo(
+    () => ({
+      nodes: data.nodes.map((n) => ({ ...n })),
+      links: data.links.map((l) => ({ ...l })),
+    }),
+    [data],
+  );
 
   return (
     <div ref={ref} className="h-[420px] w-full overflow-hidden rounded-xl bg-surface2">

@@ -6,8 +6,8 @@ import type { ReactNode } from "react";
 const NODES: { icon: ReactNode; title: string; sub: string; accent: string }[] = [
   { icon: <Package className="h-4 w-4" />, title: "Order", sub: "COD checkout, scored pre-dispatch", accent: "text-slate-500" },
   { icon: <Gauge className="h-4 w-4" />, title: "Detector", sub: "calibrated LightGBM + SHAP + anomaly", accent: "text-blue-500" },
-  { icon: <SlidersHorizontal className="h-4 w-4" />, title: "Decision core", sub: "deterministic rules → cost-optimal band", accent: "text-blue-500" },
-  { icon: <Bot className="h-4 w-4" />, title: "Agent (amber)", sub: "typed tools → policy RAG → structured decision", accent: "text-blue-500" },
+  { icon: <SlidersHorizontal className="h-4 w-4" />, title: "Decision core", sub: "deterministic rules → bands derived from action economics", accent: "text-blue-500" },
+  { icon: <Bot className="h-4 w-4" />, title: "Agent (amber)", sub: "typed tools → policy RAG → schema-constrained decision", accent: "text-blue-500" },
   { icon: <ShieldCheck className="h-4 w-4" />, title: "Action", sub: "bounded, tiered dynamic friction", accent: "text-emerald-500" },
   { icon: <Lock className="h-4 w-4" />, title: "Audit", sub: "immutable log + human override", accent: "text-slate-500" },
 ];
@@ -17,7 +17,7 @@ export default function DecisionFlow() {
     <div>
       {NODES.map((n, i) => (
         <div key={n.title} className="flex gap-3">
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center" aria-hidden="true">
             <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line bg-surface2 ${n.accent}`}>
               {n.icon}
             </div>
