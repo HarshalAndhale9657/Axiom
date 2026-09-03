@@ -10,10 +10,10 @@ from the actual word counts, not estimated — regenerate them any time with:
 python docs/scripts/script_timing.py
 ```
 
-**738 words.** At **150 words per minute** — a brisk but natural technical delivery — that
-is **4:55**. At a slower 140 it is 5:16, which is over. So rehearse against a timer, and if
-you land past five minutes use the [cut list](#if-you-are-running-long) rather than speeding
-up: rushed numbers are worse than fewer numbers. The cut list frees about 41 seconds.
+**747 words across nine beats.** At **150 words per minute** — a brisk but natural technical
+delivery — that is **4:58**. At a slower 140 it is 5:20, which is over. So rehearse against a
+timer, and if you land past five minutes use the [cut list](#if-you-are-running-long) rather
+than speeding up: rushed numbers are worse than fewer numbers. The cut list frees 40 seconds.
 
 **The one idea a judge should retain:**
 > *Razorpay already grades COD risk. Axiom is the evidence layer that proves — in rupees,
@@ -25,7 +25,7 @@ up: rushed numbers are worse than fewer numbers. The cut list frees about 41 sec
 
 - [ ] `uvicorn src.api.main:app` running, and **warmed** — load `/metrics`, `/baselines`, `/slices` once. The ablation trains two models on first call; do not put that latency on camera.
 - [ ] `npm --prefix web run dev` running. Dashboard on **Risk Queue**, **light theme**, ~1440px, zoom 90%.
-- [ ] Run one batch and log one override **before** recording, so the Audit tab is populated when you reach beat ④.
+- [ ] Run one batch and log one override **before** recording, so the Audit tab is populated when you reach beat ⑤.
 - [ ] `.env` has `GEMINI_API_KEY` and `OPENAI_API_KEY`. **Check the quota is not exhausted.** If it is, the deterministic fallback will show — say so on camera rather than hide it. Here that is a feature, not an excuse.
 - [ ] Terminal open at the repo root, font size up, ready for `pytest -q`.
 - [ ] Notifications off. Bookmarks bar hidden. One take if you can manage it.
@@ -72,26 +72,37 @@ up: rushed numbers are worse than fewer numbers. The cut list frees about 41 sec
 
 ---
 
-## ③ The product, on one real case · ~48s
+## ③ The system · ~16s
+**Screen:** the **GitHub repo page**, scrolled to the architecture diagram. One shot, three things at once: the public repo exists, the architecture is designed, and the README is not an afterthought.
+
+> Four layers, one bounded path: a calibrated detector; a deterministic core whose rules run before the model gets a say; a bounded agent on borderline cases only; human review; an immutable log.
+>
+> Rules first, because hard constraints must not be negotiable.
+
+**Delivery:** Do not narrate the boxes — they are on screen and the judge can read. Spend the words on the *decision* instead: rules-before-model is the one architectural choice the panel is most likely to probe, and saying why here means you have already answered it. Add "every choice in here has a written rationale in the repo" only if you are running short.
+
+---
+
+## ④ The product, on one real case · ~46s
 **Screen:** Risk Queue → click an **amber** order → SHAP bars → **Investigate** → verifier verdict → **Execute on Razorpay**.
 
-> Every order gets a calibrated probability of return — a probability, not a score, because everything downstream is rupee arithmetic on it.
+> Every order gets a calibrated probability of return. A probability, not a score — everything downstream is rupee arithmetic on it.
 >
-> Why this one is flagged: incomplete address, tier-three pincode, COD, first-time buyer. SHAP attributions — real per-order factors, not a template.
+> And here is why this one is flagged. These are SHAP attributions: real per-order factors, not a template.
 >
-> Only amber reaches the agent. It runs typed tools, retrieves the matching policy clause, and returns a schema-constrained decision from six allowed actions. It cannot invent a seventh or change the score.
+> This is the amber path. The agent retrieves the matching policy clause and returns a schema-constrained decision from six allowed actions — it cannot invent a seventh or change the score.
 >
-> A second model, from a different vendor, can veto it — and a veto escalates to a human.
+> A second model from a different vendor can veto it; a veto escalates to a human.
 >
 > And the action is real: a genuine Razorpay test-mode link. No money moves, but the rail is real.
 >
 > Convert to prepaid. Not a ban. Every action here is reversible.
 
-**Delivery:** The only stretch where you demo rather than argue, so let the clicks breathe. Click **Investigate** *as* you say "Only amber reaches the agent" — the trace fills while you describe it, which beats clicking into dead air. Slow down on the last line; it's the ethical core.
+**Delivery:** The only stretch where you demo rather than argue, so let the clicks breathe. Click **Investigate** *as* you say "This is the amber path" — the trace fills while you describe it, which beats clicking into dead air. Slow down on the last line; it's the ethical core.
 
 ---
 
-## ④ Bounded, audited, overridable · ~15s
+## ⑤ Bounded, audited, overridable · ~15s
 **Screen:** Override the agent's decision → Audit Trail tab.
 
 > I disagree with the agent, so I override it — logged, before and after, with my name on it.
@@ -102,7 +113,7 @@ up: rushed numbers are worse than fewer numbers. The cut list frees about 41 sec
 
 ---
 
-## ⑤ Scale, and failure · ~20s
+## ⑥ Scale, and failure · ~20s
 **Screen:** Batch tab, the completed run with its stop reason visible.
 
 > It also works the queue unattended. Thirty orders, twelve returns caught, eighteen good customers frictioned — and it stopped itself on its call budget. That is the guardrail firing, not a crash.
@@ -113,16 +124,16 @@ up: rushed numbers are worse than fewer numbers. The cut list frees about 41 sec
 
 ---
 
-## ⑥ The part that is actually being graded · ~1:47
+## ⑦ The part that is actually being graded · ~1:44
 **Screen:** Evidence tab. Scroll slowly, one exhibit per point. **This section wins or loses the submission — do not rush it.**
 
-> Track two says: honest metrics, including false-positive cost. So here is where I tried hardest to prove myself wrong.
+> Track two says: honest metrics, including false-positive cost. Here is where I tried hardest to prove myself wrong.
 >
-> **One — the threshold was chosen without looking at the test set.** Everyone sweeps a cost curve and quotes its minimum. But on test data that minimum is an oracle you can never reach in production. Mine is fitted on validation and frozen before the test split is scored. Tuning on test would have looked fifteen hundred rupees per thousand better. That number is on screen because I did not take it.
+> **One — the threshold was chosen without looking at the test set.** Everyone sweeps a cost curve and quotes its minimum — but on test data that minimum is an oracle you can never reach in production. Mine is fitted on validation and frozen before test is scored. Tuning on test would have looked fifteen hundred rupees per thousand better. It is on screen because I did not take it.
 >
-> **Two — I found a leak inside my own leakage-safe pipeline.** I already split by time. But an order placed today cannot know whether yesterday's was returned — the courier has not attempted delivery yet. So label-derived history now waits seven days. It cost three thousandths of PR-AUC. Published, not buried.
+> **Two — I found a leak inside my own leakage-safe pipeline.** I already split by time. But an order placed today cannot know whether yesterday's was returned — the courier has not attempted delivery. So label-derived history waits seven days. It cost three thousandths of PR-AUC. Published, not buried.
 >
-> **Three — I report the comparison I lose.** Against a plain logistic regression, the paired interval spans zero. I have not shown my model is better, and that is on the page. The reason is my own generator: it builds risk as a purely additive weighted sum, so logistic regression is correctly specified and cannot be beaten here.
+> **Three — I report the comparison I lose.** Against a plain logistic regression, the paired interval spans zero. I have not shown my model is better, and that is on the page. The reason is my own generator: risk is a purely additive weighted sum, so logistic regression is correctly specified and cannot be beaten here.
 >
 > **Four — I name the good customers who pay for my false positives.** A genuine tier-three buyer is three point eight times more likely to be challenged than a tier-one buyer. That is why the response is *verify*, never *block*.
 >
@@ -130,18 +141,18 @@ up: rushed numbers are worse than fewer numbers. The cut list frees about 41 sec
 
 **Screen:** cut to terminal → `python -m src.model.full_report --check`
 
-> One command regenerates all of it — and a test fails the build if my README disagrees.
+> One command regenerates all of it, and a test fails the build if my README disagrees.
 
 **Delivery:** Four numbered claims, and the numbering does real work — a judge can follow four things, not a paragraph. Pause between each. On point three, *"I have not shown my model is better"* is the most counter-intuitive sentence in the video: say it without flinching, then explain. Let the terminal command actually finish on screen; it's proof, not decoration.
 
 ---
 
-## ⑦ The impressive lie · ~26s
+## ⑧ The impressive lie · ~23s
 **Screen:** Economics tab → the leaky / honest toggle, side by side.
 
-> Public RTO models advertise ninety-nine percent AUC. Here is that number on my own data, in one line of code: nought point nine seven — by fitting the encoders on every row including its own label.
+> Public RTO models advertise ninety-nine percent AUC. Here it is on my own data, in one line: nought point nine seven — encoders fitted on every row including its own label.
 >
-> It is worthless. The model memorised the answer. My real number is nought point eight.
+> Worthless. The model memorised the answer. My real number is nought point eight.
 >
 > I built the lie so I could show you why I did not ship it.
 
@@ -149,10 +160,10 @@ up: rushed numbers are worse than fewer numbers. The cut list frees about 41 sec
 
 ---
 
-## ⑧ Close · ~28s
+## ⑨ Close · ~24s
 **Screen:** terminal, `pytest -q` finishing on **178 passed**.
 
-> A hundred and seventy-eight tests, including the leakage guards and the claim checks on the README. CI rebuilds the data and the model from scratch on every push.
+> A hundred and seventy-eight tests, and CI rebuilds the data and the model from scratch on every push.
 >
 > My pitch is not that I built the most accurate model. It is that **every number I have shown you is one I could defend in a review** — and on a system that touches money, that is the only kind worth having.
 
@@ -166,16 +177,17 @@ Cut in this order. Each is written so the video still stands without it.
 
 | # | Cut | Saves | Why it's safe |
 |---|---|---|---|
-| 1 | ⑥'s closing line, "One command regenerates all of it…" | ~7s | The `--check` command running on screen already makes the point |
-| 2 | ⑤'s second sentence, "When the model is down…" | ~7s | The audit trail already implies bounded behaviour |
-| 3 | ③'s "Why this one is flagged…" list | ~8s | The SHAP bars are on screen; let them speak for themselves |
-| 4 | ⑦'s "It is worthless. The model memorised the answer." | ~3s | "I built the lie so I could show you why I did not ship it" carries it alone |
-| 5 | ④ entirely, mentioning the audit trail in one line during ⑥ | ~16s | Last resort — this costs you the bounded-AI evidence |
+| 1 | ⑦'s closing line, "One command regenerates all of it…" | ~7s | The `--check` command running on screen already makes the point |
+| 2 | ⑥'s second sentence, "When the model is down…" | ~7s | The break-glass table below covers it if it actually happens |
+| 3 | ④'s "And here is why this one is flagged…" | ~8s | The SHAP bars are on screen; point at them and let them speak |
+| 4 | ⑧'s "Worthless. The model memorised the answer." | ~2s | "I built the lie so I could show you why I did not ship it" carries it alone |
+| 5 | ⑤ entirely, mentioning the audit trail in one line during ⑦ | ~16s | Last resort — this costs you the bounded-AI evidence |
 
-Taking 1 through 4 lands you at **4:30** and keeps every graded claim intact.
+Taking 1 through 4 lands you at **4:35** and keeps every graded claim intact.
 
-**Never cut:** the cost table in ②, any of the four numbered claims in ⑥, or the leakage
-toggle in ⑦. Those three are the submission.
+**Never cut:** the cost table in ②, any of the four numbered claims in ⑦, or the leakage
+toggle in ⑧. Those three are the submission. Keep ③ too unless you are desperate — the
+architecture is a separately graded submission artifact, and it only costs 16 seconds.
 
 ## If something breaks on camera
 
