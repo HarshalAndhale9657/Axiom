@@ -1,5 +1,10 @@
 # The 5-minute pitch — beat sheet
 
+> **Recording from this?** Use **[pitch-script.md](pitch-script.md)** instead — it is the
+> word-for-word script, timed to 4:55 at 150 wpm, with the screen action beside each line
+> and a cut list if you run long. This file is the beat sheet, the judge Q&A, and the
+> design-decision defences to rehearse for the panel.
+
 Target **4:45**, leaving buffer. Rehearse it three times against a timer before recording.
 Screen-record at 1920×1080, dashboard in its default **light** theme (higher contrast on a
 compressed video than dark), browser zoom 90%, API already warm.
