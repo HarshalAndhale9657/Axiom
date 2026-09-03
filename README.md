@@ -32,8 +32,8 @@ Axiom scores every cash-on-delivery order for return-to-origin risk, **explains*
 
 Three things that are unusual, and the reason to keep reading: the operating threshold is chosen **out-of-sample** and the gap is published; a **7-day outcome-availability lag** closes a leak most pipelines have; and the ablation **reports the comparison we lose**.
 
-<!-- Add screenshots to docs/screenshots/ then uncomment:
-![Axiom risk console](docs/screenshots/dashboard-light.png)
+<!-- Add screenshots (see docs/screenshots/README.md), then delete this line and the one below.
+![The Axiom risk console — queue, calibrated score, SHAP drivers](docs/screenshots/console.png)
 -->
 
 **Stack:** calibrated **LightGBM** + **SHAP** · a **bounded LLM agent** (typed tools, policy RAG, schema-constrained output) · **FastAPI** · **Next.js 16** console · immutable **SQLite** audit. Runs on a **$0 free tier**.
@@ -185,6 +185,13 @@ A production-grade risk console (light + **dark** mode) — **click "Play demo"*
 - **Evidence** — the four exhibits above: frozen-vs-oracle threshold, derived band economics, the baseline ablation with its intervals, and the failure-mode matrix.
 - **Fraud Rings** — an interactive shared-device graph found **without any label access**, validated honestly against the hidden ring flag.
 - **Audit Trail** — the immutable log with before→after overrides.
+
+<!-- Add screenshots (see docs/screenshots/README.md), then delete this line and the one below.
+| | |
+|---|---|
+| ![Evidence tab — the threshold was frozen on validation](docs/screenshots/evidence.png) | ![Economics — the BMR cost curve](docs/screenshots/economics.png) |
+| ![Case detail — agent trace, verifier, real Razorpay test link](docs/screenshots/case-detail.png) | ![Immutable audit trail with a human override](docs/screenshots/audit.png) |
+-->
 
 ---
 
