@@ -107,7 +107,7 @@ compressed video than dark), browser zoom 90%, API already warm.
 
 *(Terminal: `pytest -q` finishing, then the Fraud Rings tab for two seconds.)*
 
-> "175 tests, including the leakage guards, the cost arithmetic, and the claim checks on the README. CI rebuilds the dataset and the model from scratch on every push and re-audits every published number.
+> "178 tests, including the leakage guards, the cost arithmetic, and the claim checks on the README. CI rebuilds the dataset and the model from scratch on every push and re-audits every published number.
 >
 > The dataset is **synthetic** — no clean public Indian COD/RTO data exists — and that is stated on every page, along with the cost assumptions and the action-efficacy assumptions I could not measure. The model card lists every limitation I know of.
 >

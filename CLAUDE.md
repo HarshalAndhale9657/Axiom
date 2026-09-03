@@ -59,5 +59,5 @@ Python 3.10+ · **LightGBM** (primary) + **IsolationForest** (anomaly layer) · 
 - **Verify before claiming** — run the test/command and show output before saying something works.
 
 ## Status
-Feature-complete and evaluation-hardened (**175 tests green**). Detector, bounded agent, cross-vendor verifier, batch mode, copilot, ring graph, real Razorpay test-mode actions, immutable audit, Next.js console, CI, Docker, model card, generated evidence pack.
+Feature-complete and evaluation-hardened (**178 tests green**). Detector, bounded agent, cross-vendor verifier, batch mode, copilot, ring graph, real Razorpay test-mode actions, immutable audit, Next.js console, CI, Docker, model card, generated evidence pack.
 **Remaining before the ~5 Sep deadline: record the 5-min pitch (`docs/pitch.md`), add README screenshots, submit early.** Scope is frozen — do not add features. See `docs/project/PROGRESS.md`.
