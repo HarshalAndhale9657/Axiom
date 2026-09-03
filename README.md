@@ -1,8 +1,7 @@
 <!-- Line 1 = the problem. Line 2 = the demo. Line 3 = proof. (Judges & recruiters read this first.) -->
 # 🛡️ Axiom — AI Risk Manager for COD / RTO Fraud
 
-> **Under our stated cost model, blocking every COD order costs a merchant more than blocking none** — ₹71,776 against ₹64,795 per 1,000 orders. That is not a measurement, it is arithmetic on an assumed friction cost, so we publish the break-even that would overturn it (₹123; we assume ₹138).
-> Getting that trade-off right is the whole problem, and it is what Axiom is built to make provable.
+**Axiom scores every cash-on-delivery order for return-to-origin risk, explains the score, investigates borderline cases with a bounded agent, and executes a reversible, audited action chosen to minimise rupee cost — not a leaderboard number.**
 
 <p>
 <a href="https://github.com/HarshalAndhale9657/Axiom/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/HarshalAndhale9657/Axiom/actions/workflows/ci.yml/badge.svg?branch=main"></a>
@@ -17,24 +16,26 @@
      every published number, audits them for consistency, and runs the full test suite. A
      hand-typed "tests passing" badge would contradict the claim a few lines below it. -->
 
-Axiom scores every cash-on-delivery order for return-to-origin risk, **explains** the score with SHAP, **investigates** borderline cases against written policy with a bounded agent, and drives an **auditable, reversible, defense-only** action chosen to minimise rupee cost — not a leaderboard number.
+> 🎥 **Demo video:** _<add link — the 5-minute walkthrough>_ · 🔗 **Live console:** _<add link, or run it locally in two commands below>_
 
-> 🎥 **Demo video:** _<add link — record the one-click "Play demo" walkthrough>_
-> 🔗 **Live console:** _<add link, or run it locally in two commands below>_
+![The Axiom risk console — risk queue, calibrated score, recommended action and SHAP drivers](docs/screenshots/console.png)
+
+**Start here:** [the 60-second version](#the-60-second-version) · [honest metrics](#the-honest-metrics-claim-up-front) · [four things most submissions lack](#four-things-here-that-most-submissions-do-not-have) · [when it fails](#when-it-fails-on-purpose) · [architecture](#architecture) · [run it](#quickstart) · [rubric map](#the-track-2-bar-line-by-line)
+
+---
 
 ### The 60-second version
+
+> **Under our stated cost model, blocking every COD order costs a merchant more than blocking none** — ₹71,776 against ₹64,795 per 1,000 orders. That is not a measurement, it is arithmetic on an assumed friction cost, so we publish the break-even that would overturn it (₹123; we assume ₹138). Getting that trade-off right is the whole problem, and it is what Axiom is built to make provable.
 
 | | held-out test split, scored once |
 |---|---|
 | Cheaper than blocking all COD | **₹20,578** per 1,000 orders _(95% CI ₹14,404–₹25,979)_ |
 | PR-AUC | **0.509** _(95% CI 0.467–0.549)_ vs a 0.169 prevalence floor |
+| Precision / recall at the shipped threshold | **0.543 / 0.335** — deliberately chosen, [priced against the alternatives](#the-recall-question-asked-before-you-do) |
 | Optimism we declined to claim | **₹1,570** per 1,000 orders — the threshold is fitted on validation, never on test |
 
 Three things that are unusual, and the reason to keep reading: the operating threshold is chosen **out-of-sample** and the gap is published; a **7-day outcome-availability lag** closes a leak most pipelines have; and the ablation **reports the comparison we lose**.
-
-<!-- Add screenshots (see docs/screenshots/README.md), then delete this line and the one below.
-![The Axiom risk console — queue, calibrated score, SHAP drivers](docs/screenshots/console.png)
--->
 
 **Stack:** calibrated **LightGBM** + **SHAP** · a **bounded LLM agent** (typed tools, policy RAG, schema-constrained output) · **FastAPI** · **Next.js 16** console · immutable **SQLite** audit. Runs on a **$0 free tier**.
 
@@ -48,14 +49,17 @@ Track 2 is graded on *"honest metrics including false-positive cost."* Everythin
 python -m src.model.full_report     # rewrites docs/evaluation.md, the figures and the JSON
 ```
 
-**No number in this repository is typed by hand.** [`docs/evaluation.md`](docs/evaluation.md) is generated output; CI regenerates it and fails the build if it stops being internally consistent.
+**No number in this repository is typed by hand.** [`docs/evaluation.md`](docs/evaluation.md) is generated output; CI regenerates it and fails the build if it stops being internally consistent. [`tests/test_published_claims.py`](tests/test_published_claims.py) parses *this README* and asserts every figure in it against that JSON — if a retrain moves a number and the prose goes stale, the build goes red before a judge notices.
 
 | | held-out test split (n = 3,000, never resampled) |
 |---|---|
 | **PR-AUC** | **0.509** (95% CI 0.467–0.549) vs a 0.169 prevalence baseline — **3.0×** |
 | ROC-AUC | 0.800 (95% CI 0.780–0.821) |
-| Precision / recall @ the shipped threshold | 0.543 / 0.335 |
+| **Precision** @ the shipped threshold | **0.543** — of 313 orders flagged, 170 were genuine returns |
+| **Recall** @ the shipped threshold | **0.335** — of 508 returns, 170 caught |
 | Calibration (Brier) | 0.108 |
+
+Confusion at the frozen threshold τ = 0.315: **TP 170 · FP 143 · FN 338 · TN 2,349**, a 10.4% flag rate. The 143 false positives are the number this whole project is organised around — [§ 4](#four-things-here-that-most-submissions-do-not-have) names which customers absorb them.
 
 ### The money story (₹ per 1,000 orders)
 
@@ -76,6 +80,19 @@ python -m src.model.full_report     # rewrites docs/evaluation.md, the figures a
 | ![Precision-Recall](docs/figures/pr_curve.png) | ![Calibration](docs/figures/calibration.png) |
 
 > Accuracy is **intentionally never reported**. At a 17% RTO rate, flagging nothing scores 83% accuracy and prevents zero returns.
+
+### The recall question, asked before you do
+
+Catching a third of returns sounds low, so we priced the alternatives rather than defending the number:
+
+| recall | precision | ₹ / 1k | vs shipped |
+|---:|---:|---:|---:|
+| 0.24 | 0.737 | ₹52,142 | +₹943 |
+| **0.335 (shipped)** | **0.541** | **₹51,250** | — |
+| 0.54 | 0.424 | ₹49,628 | **−₹1,570** |
+| 0.67 | 0.356 | ₹52,952 | +₹1,702 |
+
+Past roughly 0.65 the friction inflicted on good customers outruns the returns prevented. And note the honest wrinkle in row three: **recall 0.54 would have been ₹1,570 cheaper on this test split.** That is exactly the optimism gap we publish — validation put the threshold at 0.315, and taking the cheaper point requires having seen the test set, which is the one thing we will not do.
 
 ---
 
@@ -112,6 +129,39 @@ A genuine tier-3 buyer is **3.8× more likely** to be challenged than a tier-1 b
 
 *And the classic exhibit:* fitting the target encoders on all rows including their own label produces **ROC-AUC 0.966 / PR-AUC 0.841** — the sort of figure public RTO models advertise. We can manufacture it in one line and it is worthless. Toggle it live in the dashboard.
 
+**All four exhibits are in the console, not just in this file:**
+
+![Evidence tab — the threshold frozen on validation, the derived band economics, the ablation ladder with its intervals, and the per-slice false-positive burden](docs/screenshots/evidence.png)
+
+---
+
+## When it fails, on purpose
+
+*"Only showing the happy path"* is listed as a trap for this track, so here is the unhappy one. **Every failure below degrades to a bounded, audited, explainable decision — none of them can produce an unbounded action, and none of them can crash the request.**
+
+| failure | what happens | where |
+|---|---|---|
+| Gemini free tier rate-limits or 5xx | `FallbackProvider` transparently fails over to OpenAI; the UI names the vendor that actually answered (`served_by`) | [`src/agent/llm.py:138`](src/agent/llm.py#L138) |
+| Every provider is down, or there is no API key at all | The deterministic core decides. The whole product still runs end-to-end with **zero** LLM keys — reason codes become rule-derived text | [`src/agent/investigate.py:192`](src/agent/investigate.py#L192) |
+| The LLM returns an action outside the closed set | Bound-checked against the enum and discarded before it can reach the actuator; deterministic fallback takes over | [`src/agent/investigate.py:184`](src/agent/investigate.py#L184) |
+| The LLM returns malformed JSON | Caught with the parse/type errors; same deterministic fallback | [`src/agent/investigate.py:192`](src/agent/investigate.py#L192) |
+| The cross-vendor verifier vetoes the recommendation | The case escalates to a human instead of executing | [`src/agent/verify.py`](src/agent/verify.py) |
+| A fail-over makes "cross-vendor" verification single-vendor | Detected, and the independence claim is dropped rather than quietly overstated | [`src/agent/investigate.py:132`](src/agent/investigate.py#L132) |
+| A batch would run too long, cost too much, or spam customers | Genuine stopping rules fire — max-N, LLM call budget, consecutive-low-value cutoff, quiet hours | [`src/agent/batch.py:79`](src/agent/batch.py#L79) |
+
+Eleven tests cover these paths specifically ([`tests/test_agent.py`](tests/test_agent.py), [`test_llm.py`](tests/test_llm.py), [`test_verify.py`](tests/test_verify.py)) — the fallbacks are asserted behaviour, not aspiration.
+
+### Scale, not an anecdote
+
+One lucky case proves nothing, so the agent runs the whole amber queue autonomously. A real run, on the labelled held-out batch:
+
+```
+processed 30 · RTOs caught 12 · good customers frictioned 18 · net recovered ₹1,910
+stopped: reached LLM call budget (30)
+```
+
+Two things worth noticing. The run **stopped on its own budget rule** rather than working the queue to exhaustion — that is the guardrail firing, and it is the intended outcome. And we report that catching 12 returns cost 18 genuine customers a verification step; that ratio is the false-positive cost the track asks about, stated where it is least flattering.
+
 ---
 
 ## Razorpay already grades COD risk. So what is this?
@@ -135,15 +185,23 @@ What Axiom adds is the layer underneath that decision: the **evidence** for whic
 
 *Cross-cutting:* reason codes are **grounded** — the LLM narrates only the SHAP factors and retrieved policy it is handed, and **never** changes a score or invents an action.
 
+Design decisions and the alternatives rejected are logged in [`docs/project/DECISIONS.md`](docs/project/DECISIONS.md); the deeper write-up is [`docs/architecture.md`](docs/architecture.md).
+
 ---
 
 ## What it does (all three Track-2 modalities)
 
+The brief asks for *"detectors, verifiers, or auto-responders."* Axiom ships all three.
+
 - **Detector** — calibrated RTO risk score + SHAP driver bars.
 - **Verifier** — address-quality / pincode-serviceability checks that can *downgrade* risk on verification; plus a cross-vendor adversarial verifier over the agent's own recommendation.
 - **Auto-responder** — a bounded, tiered **dynamic-friction** engine: `green → frictionless` · `amber → step-up / part-pay / COD→prepaid` · `red → hold / escalate`. Executing a convert-or-part-pay action creates a **real Razorpay test-mode payment link**. A mis-flagged good customer is *verified*, never silently banned.
-- **Autonomous batch mode** — works the whole amber queue under real stopping rules (max-N, call budget, consecutive-low-value, quiet hours) and reports honest net-₹ economics on the labelled held-out batch.
+- **Autonomous batch mode** — works the whole amber queue under real stopping rules and reports honest net-₹ economics on the labelled held-out batch.
 - **Grounded analyst copilot** — read-only Q&A that answers *only* from the case record and cites the policy it used, and says "that isn't in the case record" when asked anything else.
+
+![Case detail — the recommended action, the policy clauses behind it, and the bounded action executed as a real Razorpay test-mode payment link](docs/screenshots/case-detail.png)
+
+The `rzp.io` link above is live test-mode output from the Razorpay API, not a mock. No real money moves.
 
 ---
 
@@ -184,24 +242,28 @@ A production-grade risk console (light + **dark** mode) — **click "Play demo"*
 - **Economics** — the interactive BMR cost curve (with the frozen τ *and* the unused test-oracle τ marked), a ₹ confusion matrix at any threshold, the live decision-flow pipeline, and the leaky-vs-honest toggle.
 - **Evidence** — the four exhibits above: frozen-vs-oracle threshold, derived band economics, the baseline ablation with its intervals, and the failure-mode matrix.
 - **Fraud Rings** — an interactive shared-device graph found **without any label access**, validated honestly against the hidden ring flag.
-- **Audit Trail** — the immutable log with before→after overrides.
+- **Audit Trail** — the immutable log, with each decision's source and any human override.
 
-<!-- Add screenshots (see docs/screenshots/README.md), then delete this line and the one below.
 | | |
 |---|---|
-| ![Evidence tab — the threshold was frozen on validation](docs/screenshots/evidence.png) | ![Economics — the BMR cost curve](docs/screenshots/economics.png) |
-| ![Case detail — agent trace, verifier, real Razorpay test link](docs/screenshots/case-detail.png) | ![Immutable audit trail with a human override](docs/screenshots/audit.png) |
--->
+| ![Economics — the BMR cost curve with the shipped threshold and the unused test-oracle both marked, beside the leakage-tax exhibit](docs/screenshots/economics.png) | ![Audit trail — append-only, with each decision's source and whether the agent or a batch produced it](docs/screenshots/audit.png) |
+| **Economics** — the cost curve carries the frozen τ *and* the test-oracle τ we did not use. Above it, the leakage exhibit: our honest 0.80 beside the 0.97 we could have advertised. | **Audit trail** — append-only, enforced by database triggers. Every row names its source, so an agent decision and an autonomous batch decision are never confused. |
 
 ---
 
-## Why this wins (Track-2 rubric map)
+## The Track-2 bar, line by line
+
+> *"Develop detectors, verifiers, or auto-responders for fraud, returns, or chargebacks, with measured precision/recall."*
+> *"Honest metrics including false-positive cost. Strictly defense-only: anything offense-capable is disqualified."*
 
 | Requirement | How Axiom satisfies it |
 |---|---|
 | Detector · verifier · auto-responder | All three present, demonstrable, and executing real test-mode actions |
-| Measured precision / recall | With bootstrap confidence intervals, on an untouched time-split test set |
+| Measured precision / recall | **0.543 / 0.335** at a frozen threshold, with bootstrap intervals, on an untouched time-split test set — plus the recall curve priced in rupees |
 | **Honest metrics incl. false-positive cost** | Rupee BMR cost curve, threshold fitted out-of-sample with the optimism gap published, per-slice false-positive burden on good customers, baseline ablation including the comparison we lose, two leakage taxes paid and measured |
+| No cherry-picking | Every published number is regenerated by one command and unit-tested against this README in CI |
+| Failure modes shown, not hidden | A [dedicated section](#when-it-fails-on-purpose) of degradation paths, each one tested |
+| Scale over anecdote | Autonomous batch over the full amber queue, stopping rules firing, net-₹ reported honestly |
 | **Strictly defense-only** | Scores / flags / verifies / protects only — every action reversible, nothing offense-capable |
 | Meaningful AI | Bounded agent (typed tools + policy RAG + schema-constrained decisions), cross-vendor adversarial verifier, grounded SHAP→LLM reason codes |
 | Auditable & bounded | Rules-before-LLM, closed action set, DB-enforced immutable audit, human override on every path |
@@ -211,10 +273,10 @@ A production-grade risk console (light + **dark** mode) — **click "Play demo"*
 ## Tech stack
 Python · **LightGBM** + **IsolationForest** · **SHAP** · **FastAPI** · **SQLite** (immutable audit) · provider-agnostic LLM on **Gemini** free tier with OpenAI fail-over · TF-IDF policy RAG · **NetworkX** ring detection · **Next.js 16** + Tailwind + Recharts.
 
-Dependencies are deliberately minimal — every package in `requirements.txt` is actually imported. The LLM layer speaks HTTPS directly, so no vendor SDK is required; the policy retriever is TF-IDF over a small corpus, so no vector database is required.
+Dependencies are deliberately minimal — every package in `requirements.txt` is actually imported, and a test enforces it. The LLM layer speaks HTTPS directly, so no vendor SDK is required; the policy retriever is TF-IDF over a small corpus, so no vector database is required.
 
 ## Testing
-`pytest -q` → **175 tests**, including the leakage guards (first-sighting encoding == prior, outcome-lag monotonicity, velocity independence), a hand-checked rupee cost example, the frozen-threshold-never-beats-the-oracle invariant, paired-bootstrap determinism, closed-action-space checks, and API/audit round-trips. CI additionally rebuilds the dataset and model from scratch and re-audits every published number.
+`pytest -q` → **178 tests**, including the leakage guards (first-sighting encoding == prior, outcome-lag monotonicity, velocity independence), a hand-checked rupee cost example, the frozen-threshold-never-beats-the-oracle invariant, paired-bootstrap determinism, closed-action-space checks, the agent's degradation paths, and API/audit round-trips. CI additionally rebuilds the dataset and model from scratch and re-audits every published number.
 
 ## Repo map
 `src/` — `data` · `features` · `model` · `rules` · `agent` · `rag` · `graph` · `actions` · `audit` · `api` · `web/` — the dashboard · `docs/` — plan, policy, evaluation, figures · `notebooks/` — the runnable evaluation.

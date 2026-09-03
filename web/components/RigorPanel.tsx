@@ -206,7 +206,12 @@ function Ablation({ report, onRetry, failed }: {
 
         <div className="mt-4 space-y-2">
           {report.rows
-            .filter((r) => r.champion_beats_pr_auc !== undefined && r.champion_beats_pr_auc !== null)
+            // A gap needs two finite bounds. The prevalence row has none — a constant
+            // predictor has no ranking, so there is no PR-AUC to take a difference from —
+            // and rendering it anyway printed an empty "[, ]" next to the words "not shown
+            // to be better", which reads as us failing to beat a no-skill baseline we in
+            // fact beat threefold.
+            .filter((r) => r.champion_gain_pr_auc_lo != null && r.champion_gain_pr_auc_hi != null)
             .map((r) => {
               const wins = r.champion_beats_pr_auc === true;
               return (
