@@ -7,6 +7,17 @@
 
 ---
 
+> ⚠️ **Status: this is the plan as written on 2026-08-23, kept for provenance — not a description of what shipped.**
+> Two things diverged deliberately during the build and are logged in
+> [docs/project/DECISIONS.md](docs/project/DECISIONS.md):
+> **(1)** the agent runs on **Gemini (free tier) with an OpenAI fail-over over plain REST**, not the
+> Claude Agent SDK — there was no Anthropic budget, and the provider-agnostic interface was the
+> honest way to keep the design intact; **(2)** the evaluation is considerably stricter than §9
+> planned (threshold fitted out-of-sample, outcome-availability lag, baseline ablation with paired
+> intervals, per-slice false-positive audit).
+> For what the system actually does today, read [README.md](README.md),
+> [docs/architecture.md](docs/architecture.md) and [docs/evaluation.md](docs/evaluation.md).
+
 ## 0. How to use this document
 This is the single source of truth for the build. Sections 1–4 are the *strategy* (why we win). Sections 5–11 are the *spec* (what to build). Section 12 is the *day-by-day*. Sections 13–16 are *pitch, risk, and the winning checklist*. **Re-read Section 4 before every major decision** — winning teams map every choice back to the rubric.
 

@@ -33,8 +33,9 @@ import numpy as np
 import pandas as pd
 
 from src.features.build_features import build_features
-from src.model.baselines import compare
-from src.model.evaluation import CostModel, report, save_plots
+from src.model.baselines import compare, interaction_probe
+from src.model.evaluation import CostModel, block_all_breakeven, cost_curve, report, save_plots
+from src.model.evaluation import total_cost
 from src.model.slices import disparity, slice_report, worst_slices
 from src.model.threshold import (
     ActionModel,
@@ -77,6 +78,10 @@ def build(orders_path: str = "data/cod_orders.csv", model_dir: str = "models",
 
     derived = band_policy_cost(y, proba, value, thresholds.tau_low, thresholds.tau_high, cm)
     legacy = band_policy_cost(y, proba, value, 0.15, 0.45, cm)
+    is_cod = test["is_cod"].to_numpy()
+    breakeven = block_all_breakeven(y, value, is_cod, cm)
+    recall_tradeoff = _recall_tradeoff(y, proba, value, thresholds.tau_star, cm)
+    interactions = interaction_probe(bundle)
 
     out = {
         "generated_on": date.today().isoformat(),
@@ -97,6 +102,9 @@ def build(orders_path: str = "data/cod_orders.csv", model_dir: str = "models",
             "action_model": asdict(ActionModel()),
         },
         "ablation": ablation,
+        "block_all_breakeven": breakeven,
+        "recall_tradeoff": recall_tradeoff,
+        "interaction_probe": interactions,
         "failure_modes": {
             "slices": slices, "worst": worst_slices(slices), "disparity": disparity(slices),
         },
@@ -118,6 +126,33 @@ def build(orders_path: str = "data/cod_orders.csv", model_dir: str = "models",
     (REPORTS / "evaluation.json").write_text(
         json.dumps(_clean(out), indent=2), encoding="utf-8")
     return out
+
+
+def _recall_tradeoff(y, proba, value, shipped_tau: float, cm: CostModel) -> list[dict]:
+    """What buying more recall actually costs, in rupees.
+
+    "You only catch a third of returns" is the first thing anyone says about this
+    model, so the answer should be a table rather than a paragraph. Rows are taken from
+    the test cost curve at a spread of recall targets; the comparison column is against
+    the shipped operating point.
+    """
+    curve = cost_curve(y, proba, value, cm, n_grid=399)
+    n = len(y)
+    shipped_cost = total_cost(np.asarray(proba) >= shipped_tau, y, value, cm) / n * 1000.0
+    rows = []
+    for target in (0.25, 0.335, 0.50, 0.65, 0.80):
+        row = curve.iloc[(curve["recall"] - target).abs().argmin()]
+        cost_per_1k = float(row["cost"]) / n * 1000.0
+        rows.append({
+            "target_recall": target,
+            "recall": float(row["recall"]),
+            "threshold": float(row["threshold"]),
+            "precision": float(row["precision"]),
+            "cost_per_1k": cost_per_1k,
+            "delta_vs_shipped_per_1k": cost_per_1k - shipped_cost,
+            "is_shipped": bool(abs(float(row["threshold"]) - shipped_tau) < 0.01),
+        })
+    return rows
 
 
 def _lag_tax(orders: pd.DataFrame) -> dict:
@@ -169,6 +204,7 @@ def _ci(head: dict, key: str, fmt: str = "{:.3f}") -> str:
 
 
 def render_markdown(rep: dict) -> str:
+    rep_dict = rep
     head, mon, at = rep["headline"], rep["headline"]["money"], rep["headline"]["at_tau_star"]
     th, band = rep["thresholds"], rep["band_economics"]
     ab = pd.DataFrame(rep["ablation"]) if not isinstance(rep["ablation"], pd.DataFrame) \
@@ -244,6 +280,27 @@ def render_markdown(rep: dict) -> str:
         f"recall **{at['recall']:.3f}**{_ci(head, 'recall')}, flag rate "
         f"{at['flag_rate']:.1%} (TP {at['tp']}, FP {at['fp']}, FN {at['fn']}).")
     add("")
+    add("### \"You only catch a third of the returns\"")
+    add("")
+    add("Correct, and deliberate. Recall is not free — every point of it is bought with "
+        "friction on genuine customers, and past a point that costs more than the returns "
+        "it prevents. What the extra recall would actually cost, on this split:")
+    add("")
+    add("| recall | τ | precision | ₹ / 1k | vs shipped |")
+    add("|---:|---:|---:|---:|---:|")
+    for r in rep_dict["recall_tradeoff"]:
+        mark = " ← **shipped**" if r["is_shipped"] else ""
+        delta = "—" if r["is_shipped"] else f"{r['delta_vs_shipped_per_1k']:+,.0f}"
+        add(f"| {r['recall']:.3f}{mark} | {r['threshold']:.3f} | {r['precision']:.3f} | "
+            f"{_rs(r['cost_per_1k'])} | {delta} |")
+    add("")
+    add("Two honest readings of that table. Pushing recall past ~0.65 costs real money, so "
+        "the low recall is a defensible choice rather than a weakness we are hiding. But the "
+        "middle rows are *cheaper* than what we shipped — the validation split simply put the "
+        "threshold higher than the test split would have liked, and that difference is exactly "
+        "the optimism gap above. We could have had it by choosing τ with knowledge of the test "
+        "set, which is the one thing we will not do.")
+    add("")
 
     add("## 4. The money story")
     add("")
@@ -263,11 +320,29 @@ def render_markdown(rep: dict) -> str:
                   f" (95% CI {_rs(saving_ci['lo'])}–{_rs(saving_ci['hi'])})")
     add(f"Axiom is {_rs(mon['rupees_saved_per_1k_vs_block_all_cod'])} per 1,000 orders "
         f"cheaper than blocking all COD{saving_txt} and "
-        f"{mon['savings_vs_approve_all_pct']:.1f}% cheaper than approving everything. "
-        "Note the middle row: **blocking all COD costs more than doing nothing at all.** "
-        "That is the false-positive argument in rupees — the friction you inflict on good "
-        "customers is not free, and a blunt policy spends more of it than the fraud is "
-        "worth.")
+        f"{mon['savings_vs_approve_all_pct']:.1f}% cheaper than approving everything.")
+    add("")
+    be = rep["block_all_breakeven"]
+    add("### The middle row is a claim, so here is its break-even")
+    add("")
+    add("Blocking all COD costing more than doing nothing is not a measurement — it is an "
+        "arithmetic consequence of the assumed friction cost, and it deserves to be stated "
+        "as one. The policy buys back `c_FN` on every COD order that would have returned "
+        "and pays `c_FP` on every one that would not:")
+    add("")
+    add(f"- COD returns it would prevent: **{be['n_cod_returns_prevented']:,}**, worth "
+        f"{_rs(be['value_of_prevented_returns'])}")
+    add(f"- genuine COD customers it would challenge: **{be['n_good_cod_challenged']:,}**")
+    add(f"- **break-even: {_rs(be['breakeven_mean_fp_cost'])}** per challenged genuine "
+        "customer")
+    add(f"- our assumed cost: **{_rs(be['assumed_mean_fp_cost'])}** — "
+        f"**{be['headroom_ratio']:.2f}x** the break-even")
+    add("")
+    add(f"So the finding holds for any friction cost above {_rs(be['breakeven_mean_fp_cost'])} "
+        "and reverses below it. That is thin headroom, and we would rather a reader see the "
+        "pivot than take the headline on trust: substitute your own number for what it costs "
+        "to make a genuine customer prove themselves, and the conclusion follows or it does "
+        "not. The dashboard slider exists for exactly this.")
     add("")
     add("![BMR cost curve](figures/cost_curve.png)")
     add("")
@@ -308,12 +383,30 @@ def render_markdown(rep: dict) -> str:
                   if isinstance(getattr(r, "champion_beats_pr_auc", None), (bool, np.bool_))
                   and not r.champion_beats_pr_auc]
         if beaten:
-            add("We report this as it came out. The tree ensemble earns a clear win over the "
-                "expert scorecard, but against a calibrated logistic regression the gap is "
-                "inside the noise on this dataset. LightGBM stays in the pipeline because it "
-                "handles the categorical and interaction structure the ring/velocity features "
-                "carry and because SHAP gives per-order attributions the agent can narrate — "
-                "not because we have shown it is significantly more accurate here.")
+            probe = rep_dict["interaction_probe"]
+            add("**Why logistic regression ties — and why that is expected, not surprising.**")
+            add("")
+            add("It would be easy to present this as a finding about RTO. It is not. Our "
+                "generator composes risk *additively* — a sigmoid over a weighted sum of "
+                "per-feature terms, with no interaction terms anywhere "
+                "(`src/data/generate_synthetic_cod.py`). A logistic model is therefore the "
+                "**correctly specified** model for this world, and no tree ensemble can beat "
+                "a correctly specified model except by luck.")
+            add("")
+            add("Rather than assert that from reading our own generator, we measured it — "
+                f"adding all {probe['n_interaction_terms']} pairwise interactions to the "
+                "logistic model changes test PR-AUC by "
+                f"**{probe['interaction_gain']:+.4f}** "
+                f"({probe['linear_pr_auc']:.4f} → {probe['with_pairwise_interactions_pr_auc']:.4f}). "
+                "There is no non-additive structure to find, so there is nothing for depth to "
+                "buy.")
+            add("")
+            add("This is a limitation of the **synthetic world**, not a result about real "
+                "order flow, where interactions plainly do exist — a first-time buyer at a "
+                "high-risk pincode is worse than the sum of those two facts. We keep LightGBM "
+                "because it will find that structure when the data has it, and because SHAP "
+                "gives the per-order attributions the agent narrates. On *this* dataset we "
+                "cannot demonstrate that advantage, and we do not claim it.")
             add("")
 
     add("## 6. Which good customers pay for the false positives?")
@@ -432,7 +525,11 @@ def render_markdown(rep: dict) -> str:
         "substitute their own numbers.")
     add("- **The action efficacies are assumed** (§8) and are the largest source of "
         "uncertainty in the band economics.")
-    add("- **LightGBM is not shown to beat logistic regression** on this dataset (§5).")
+    add("- **The generator is additive, so logistic regression is correctly specified** and "
+        "LightGBM cannot beat it here (§5). Any claim that the tree ensemble is the better "
+        "model would have to be made on real, interaction-bearing data.")
+    add("- **The headline cost comparison has ~12% headroom** on the assumed friction cost "
+        "(§4). It is an argument with a stated pivot, not a measurement.")
     add("- **A calibrated ranker is not a fraud oracle.** Recall at the frozen threshold is "
         f"{at['recall']:.0%}: most returns are not caught, and the system is built around "
         "that fact — bounded, reversible friction with human override, rather than blocks.")

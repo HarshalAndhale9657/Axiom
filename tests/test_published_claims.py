@@ -163,16 +163,54 @@ def test_readme_disparity_multiple_matches(report, readme):
 
 # --- the claims about the repo itself -----------------------------------------------------
 
-def test_test_count_badge_is_not_an_overclaim(readme):
-    """The badge may under-promise, never over-promise."""
-    match = re.search(r"tests-(\d+)%20passing", readme)
-    assert match, "the README no longer carries a test-count badge"
-    claimed = int(match.group(1))
-    collected = sum(1 for path in (ROOT / "tests").glob("test_*.py")
-                    for line in path.read_text(encoding="utf-8").splitlines()
-                    if line.startswith("def test_"))
-    assert claimed <= collected, (
-        f"README claims {claimed} tests but only {collected} test functions exist")
+def test_status_badges_are_live_not_hand_typed(readme):
+    """A hand-typed "tests passing" badge would contradict the sentence beneath it.
+
+    The README asserts that no number in the repository is typed by hand. A static
+    shields.io badge carrying a test count is exactly such a number — it was one, it went
+    stale within an hour of being written, and it sat six lines above that claim. The build
+    status must therefore come from the workflow itself.
+    """
+    assert "actions/workflows/ci.yml/badge.svg" in readme, (
+        "the README must carry the live GitHub Actions badge, not a hand-typed status")
+    stale = re.search(r"shields\.io/badge/tests-(\d+)", readme)
+    assert not stale, (
+        f"a hard-coded test-count badge is back ({stale.group(1) if stale else ''}) — "
+        "it cannot stay accurate and it undercuts the honesty claim below it")
+
+
+def test_readme_breakeven_matches_the_measurement(report, readme):
+    """The headline cost comparison must ship with the pivot that would overturn it."""
+    be = report["block_all_breakeven"]
+    claimed_be = _rupees(readme, r"turns bad above \*\*₹([\d,]+)\*\*")
+    claimed_assumed = _rupees(readme, r"We assume \*\*₹([\d,]+)\*\*")
+    assert claimed_be == pytest.approx(be["breakeven_mean_fp_cost"], rel=DRIFT)
+    assert claimed_assumed == pytest.approx(be["assumed_mean_fp_cost"], rel=DRIFT)
+    # If this ever inverts, the headline claim is false and the README must change.
+    assert be["headroom_ratio"] > 1.0, (
+        "the assumed friction cost has fallen below break-even — 'block all COD is worse "
+        "than doing nothing' is no longer true and the README still says it is")
+
+
+def test_readme_explains_the_logistic_tie_by_additivity(report, readme):
+    """Reporting the null result is only honest if we also explain why it happens."""
+    probe = report["interaction_probe"]
+    assert probe["additive_dgp"], (
+        "interactions now help, so the generator is no longer additive — the README's "
+        "explanation for the logistic-regression tie is out of date")
+    claimed = re.search(r"changes test PR-AUC by \*\*(−|-)([\d.]+)\*\*", readme)
+    assert claimed, "the README no longer quotes the measured interaction gain"
+    assert float(claimed.group(2)) == pytest.approx(abs(probe["interaction_gain"]), abs=0.01)
+    assert "correctly specified" in readme
+    assert "synthetic" in readme
+
+
+def test_readme_does_not_present_razorpay_as_naive(readme):
+    """Framing a binary COD block as the state of the art reads as not having used the product."""
+    assert "magic-checkout" in readme.lower(), (
+        "the README should acknowledge that Razorpay already grades COD risk")
+    # We may cite their copy, but never an effectiveness statistic we could not verify.
+    assert "50% fewer" not in readme, "unverified vendor statistic in the README"
 
 
 def test_every_requirement_is_actually_imported():

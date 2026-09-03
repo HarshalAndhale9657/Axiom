@@ -1,10 +1,11 @@
 # The 5-minute pitch — beat sheet
 
 Target **4:45**, leaving buffer. Rehearse it three times against a timer before recording.
-Screen-record at 1920×1080, dashboard in **dark mode**, browser zoom 90%, API already warm.
+Screen-record at 1920×1080, dashboard in its default **light** theme (higher contrast on a
+compressed video than dark), browser zoom 90%, API already warm.
 
 **The single idea the judges should remember:**
-> *Blocking all COD costs more than approving everything. Axiom is the system that proves that in rupees and then acts on it — bounded, auditable, and honest about what it gets wrong.*
+> *Razorpay already grades COD risk. Axiom is the evidence layer that proves — in rupees, out-of-sample, with the break-even published — which grade is right and what being wrong costs.*
 
 ---
 
@@ -22,11 +23,11 @@ Screen-record at 1920×1080, dashboard in **dark mode**, browser zoom 90%, API a
 
 > "Cash on delivery is 60% of Indian e-commerce, and roughly a quarter of those orders come straight back — return to origin. The merchant eats the round trip twice.
 >
-> So the obvious fix is: stop taking COD from risky customers. I measured what that actually costs." *(Economics tab, point at the table.)*
+> Magic Checkout already grades this — nudge to prepay, differential COD fees, disable COD for repeat offenders. So I did not build another risk score. I built the evidence layer underneath it: the part that says which grade is right and what being wrong costs, in rupees." *(Economics tab, point at the table.)*
 >
-> "Blocking all COD costs **₹71,776** per thousand orders. Approving everything — doing literally nothing — costs **₹64,795**. **The blunt fraud control is worse than having no fraud control at all**, because the friction you put on good customers is not free.
+> "Here is why grading beats a binary block. Blocking all COD costs **₹71,776** per thousand orders. Approving everything — doing literally nothing — costs **₹64,795**. **The blunt control is worse than no control at all**, because the friction you put on good customers is not free.
 >
-> That is the false-positive problem. It is what Track 2 asks you to measure, and it is what Axiom is built around."
+> And that is a claim, not a measurement, so it ships with its break-even: it holds while challenging a genuine customer costs more than **₹123**. I assume ₹138. That is 1.12× headroom, and I would rather you saw the pivot than took my word for it."
 
 **On screen:** Economics tab, the three-row cost table.
 
@@ -78,7 +79,7 @@ Screen-record at 1920×1080, dashboard in **dark mode**, browser zoom 90%, API a
 >
 > **Two. I found a leak inside my own leakage-safe pipeline.** I already split by time and used out-of-fold encoding. But an order placed today cannot know whether *yesterday's* order was returned — the courier has not even attempted delivery. My history features were counting outcomes that had not happened yet. So every label-derived feature now waits **seven days**. It cost me 0.003 PR-AUC. I published the cost.
 >
-> **Three. I report the comparison I lose.** My LightGBM beats a hand-written expert scorecard clearly. Against a plain **logistic regression**, the paired bootstrap interval is minus-one to plus-one-point-seven — **it spans zero. I have not shown my model is better, and that is on the page.** I keep LightGBM for the interaction structure and for SHAP, and I say exactly that rather than implying an accuracy win I cannot defend.
+> **Three. I report the comparison I lose — and I can explain why I lose it.** My LightGBM beats a hand-written expert scorecard clearly. Against a plain **logistic regression**, the paired interval spans zero: **I have not shown my model is better, and that is on the page.** The reason is not modesty, it is my own data — the generator builds risk as a weighted sum through a sigmoid, purely additive, so logistic regression is the *correctly specified* model and cannot be beaten here. I measured that instead of asserting it: adding all 231 pairwise interactions moves PR-AUC by minus-nought-point-nought-three-eight. There is nothing non-additive to find. Real order flow has interactions; my synthetic world does not, so I keep the tree and decline the claim.
 >
 > **Four. I name the good customers who pay for my false positives.** A genuine tier-3 buyer is **3.8× more likely** to be challenged than a tier-1 buyer. Fourteen percent of good ₹2k–5k orders get friction. That is a real cost to real people — and it is precisely why the response is *verify*, never *block*.
 >
@@ -120,15 +121,37 @@ Screen-record at 1920×1080, dashboard in **dark mode**, browser zoom 90%, API a
 
 | Question | Answer |
 |---|---|
+| *"You only catch a third of the returns."* | Deliberate, and I can price the alternatives. Recall 0.67 costs ₹1,753 more per 1k; recall 0.79 costs ₹5,714 more — past ~0.65 the friction outruns the returns prevented. But note the honest wrinkle: recall 0.53 would have been ₹1,570 *cheaper* on test. That is exactly my published optimism gap. Validation put τ at 0.315; taking the cheaper point requires knowing the test set, which is the one thing I will not do. |
 | *"Why is your AUC only 0.80?"* | Because it is real. The leaky variant hits 0.97 — I show it. RTO has irreducible noise: whether someone is home is not in the features. |
 | *"Your data is synthetic — so what does this prove?"* | The methodology, which is what transfers. The generator's latents are hidden from the model, the metrics are measured on held-out data, and the pipeline runs unchanged on real orders after recalibration. I state it everywhere rather than burying it. |
-| *"Why LightGBM if logistic regression matches it?"* | It does not *beat* it on this data and I say so. LightGBM handles the categorical and velocity interactions and gives per-order SHAP that the agent narrates. If a merchant's data showed the same tie, shipping the logistic model would be the right call. |
-| *"Where do c_FP and c_FN come from?"* | They are assumptions, stated on-screen. The slider exists so you can substitute yours; the conclusion — that blocking all COD is worse than doing nothing — holds across the plausible range. |
+| *"Why LightGBM if logistic regression matches it?"* | Because the tie is an artefact of my own generator and I can prove it. The data-generating process is a sigmoid over a weighted sum — purely additive, no interaction terms — so logistic regression is the *correctly specified* model here. I measured it: adding all 231 pairwise interactions to the logistic model changes PR-AUC by −0.038. There is nothing non-additive to find. On real order flow there is (a first-time buyer at a bad pincode is worse than the sum), which is why I keep the tree — but I cannot demonstrate that on this data, so I do not claim it. If a merchant's real data showed the same tie, shipping the logistic model would be the right call. |
+| *"Where do c_FP and c_FN come from?"* | They are assumptions, stated on-screen, and I publish the break-even rather than defending the point estimate. Block-all-COD stops being worse than doing nothing below ₹123 per challenged genuine customer; I assume ₹138. If your number is lower, my headline reverses and I would want to know that. The rest of the system — out-of-sample threshold, ranking quality, the slice audit — does not move. |
 | *"How do you know a step-up prevents a return?"* | I do not. It is the largest assumption in the band economics, so I sweep it: τ_low moves from 0.11 to 0.73 across plausible efficacies. The formula ships, not the constant. |
 | *"What happens when Gemini is down?"* | Fail-over to OpenAI, then to the deterministic core. The trace labels which one served, and the verifier only claims cross-vendor independence when the vendors genuinely differed. |
+| *"Isn't this just Magic Checkout?"* | The action ladder is the same, and that is deliberate — you already proved graded response is right. What I add is the evidence layer: a threshold fitted out-of-sample with the optimism published, a break-even under every cost assumption, the per-slice bill genuine customers pay for false positives, and an audit trail that makes a decision defensible weeks later. I am not claiming a better score than yours. I am claiming I can show my working. |
+| *"Your data is synthetic and your model recovers your own generator."* | Yes — that is the honest reading, and it is why the logistic tie happens. What transfers is the method, not the number: the leakage discipline, the out-of-sample threshold, the cost framing, the slice audit. The first thing I would want on real order flow is a recalibration and a fresh threshold fit; the second is to check whether the interaction structure I could not test for actually shows up. |
 | *"Could this be used offensively?"* | No. It scores and applies reversible friction. There is no evasion tooling, no fraud generation, and no irreversible action anywhere in the closed action set. |
 
 ---
+
+## Defend every design choice (rehearse these separately)
+
+The repo is a stronger artifact than most people can defend live, and every choice in it is
+a question the panel can ask. Have a two-sentence answer for each before adding anything new.
+
+| Choice | Why, in two sentences |
+|---|---|
+| **Isotonic calibration, not Platt** | Platt assumes the miscalibration is sigmoidal; a GBDT's distortion is not, it is monotone but arbitrary. Isotonic fits any monotone map, and with 3,000 validation rows there is enough data that its extra flexibility does not overfit. |
+| **No SMOTE / class weights** | At 17% positives this is moderate imbalance, not the sub-1% extreme where resampling helps ranking. Every downstream decision is a rupee threshold on a probability, and resampling distorts exactly those probabilities — I would gain nothing and break the cost arithmetic. |
+| **IsolationForest as a trip-wire, not a feature** | As a feature it would be one more correlated input the GBDT mostly ignores. As an independent gate it covers the case the supervised model structurally cannot — a pattern absent from training data — and it can only ever escalate, never approve. |
+| **Paired bootstrap for the ablation** | The two models are scored on the same orders, so their errors are correlated; an unpaired interval would overstate the uncertainty on the *difference* and might have let me claim a win I do not have. |
+| **Chronological split, not K-fold** | The problem is temporal and production scores forward in time. K-fold would let the model learn from the future, which is the whole class of leakage I am trying to avoid. |
+| **Rules before the LLM** | The deterministic rules are the highest-precision signals (non-serviceable pincode, blocklist, ring velocity) and they must not be negotiable. Running them first means the LLM never sees a case where it could talk itself past a hard constraint. |
+| **Agent only on AMBER** | Green and red are already decided; spending a model call on them buys nothing and costs latency and quota. Amber is where the marginal information actually changes the action. |
+| **Closed action set + schema-constrained output** | The LLM picks *among* actions rather than describing one, so an invalid action is a parse failure rather than a bad decision. Anything it returns outside the set falls back to the deterministic core. |
+| **Target encoding with a train-only prior** | The shrinkage means a pincode seen twice is mostly prior, not memorised outcome, which is what stops rare-category leakage. The prior comes from train only so validation and test cannot leak backwards through it. |
+| **7-day outcome lag** | An order placed today cannot know if yesterday's was returned — the courier has not attempted delivery. Without the lag I would be training on knowledge the live scorer never has. |
+| **Cost per 1,000 orders, not total** | Totals scale with the test split size and are not comparable across datasets or merchants. Per-1k is the unit a merchant can multiply by their own volume. |
 
 ## Cutting order if you run long
 

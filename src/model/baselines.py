@@ -254,3 +254,52 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def interaction_probe(bundle: FeatureBundle, seed: int = 42) -> dict:
+    """Is there any interaction structure in this data for a tree ensemble to exploit?
+
+    Why this exists: the ablation shows LightGBM failing to beat logistic regression, and
+    it would be easy to present that as a surprising empirical finding about RTO. It is
+    not. The synthetic generator builds its risk as a plain weighted sum of per-feature
+    terms passed through a sigmoid — no interaction terms anywhere — so a logistic model is
+    the *correctly specified* model for this world and the tie is the expected result.
+
+    Rather than assert that from reading the generator, measure it: fit a linear logistic
+    model, then the same model with every pairwise interaction added. If the interactions
+    buy nothing (or cost accuracy through added variance) there is no non-additive
+    structure present, and no amount of tree depth can find any.
+
+    This matters for the reader's interpretation: it is evidence about our *dataset*, not
+    about the RTO problem, and the distinction is the honest one to draw.
+    """
+    from sklearn.preprocessing import PolynomialFeatures, StandardScaler
+
+    X_tr, y_tr = bundle.split("train")
+    X_te, y_te = bundle.split("test")
+    num_tr = _numeric_matrix(X_tr)
+    num_te = _numeric_matrix(X_te)
+    scaler = StandardScaler().fit(num_tr)
+    Z_tr, Z_te = scaler.transform(num_tr), scaler.transform(num_te)
+    y_tr, y_te = y_tr.to_numpy(), y_te.to_numpy()
+
+    linear = LogisticRegression(max_iter=3000, random_state=seed).fit(Z_tr, y_tr)
+    linear_ap = float(average_precision_score(y_te, linear.predict_proba(Z_te)[:, 1]))
+
+    poly = PolynomialFeatures(degree=2, interaction_only=True, include_bias=False)
+    P_tr, P_te = poly.fit_transform(Z_tr), poly.transform(Z_te)
+    crossed = LogisticRegression(max_iter=3000, random_state=seed).fit(P_tr, y_tr)
+    crossed_ap = float(average_precision_score(y_te, crossed.predict_proba(P_te)[:, 1]))
+
+    return {
+        "linear_pr_auc": linear_ap,
+        "with_pairwise_interactions_pr_auc": crossed_ap,
+        "interaction_gain": crossed_ap - linear_ap,
+        "n_interaction_terms": int(P_tr.shape[1] - Z_tr.shape[1]),
+        "additive_dgp": bool(crossed_ap - linear_ap <= 0.0),
+        "note": ("The generator composes risk additively (a sigmoid over a weighted sum), so "
+                 "logistic regression is correctly specified here and adding interactions "
+                 "cannot help. A tree ensemble therefore has nothing extra to find — which "
+                 "explains the ablation result and is a property of this synthetic dataset, "
+                 "not a claim about real RTO data."),
+    }

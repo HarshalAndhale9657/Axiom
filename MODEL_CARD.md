@@ -113,9 +113,11 @@ frictioned. Three design choices follow from that:
 
 - **Dynamic friction, never a block.** The worst routine outcome is being asked to confirm
   an address or being offered a prepaid link — one step to clear yourself.
-- **The threshold is chosen on cost, not on a leaderboard.** A blunt "block all COD" policy
-  is measurably *more* expensive than approving everything, because the friction it inflicts
-  on good customers outweighs the fraud it stops. That result is the argument.
+- **The threshold is chosen on cost, not on a leaderboard.** Under our stated cost model a
+  blunt "block all COD" policy is *more* expensive than approving everything, because the
+  friction it inflicts on good customers outweighs the fraud it stops. That comparison is an
+  argument rather than a measurement, so its break-even is published alongside it
+  (evaluation §4): it holds while challenging a genuine COD customer costs more than ₹123.
 - **The disparity is published.** §6 of the evaluation names the groups that absorb the most
   friction — tier-3 cities, first-time buyers, higher-value orders. This is an operational
   harm audit, not a legal fairness audit: no protected attribute is used, and the variables
@@ -141,9 +143,16 @@ written to an append-only SQLite log with database triggers blocking `UPDATE` an
 - **The action efficacies are assumed.** How much of a return a step-up actually prevents is
   unmeasurable without a counterfactual experiment. The band cut-points depend on it, so the
   assumption is swept rather than asserted.
-- **LightGBM is not shown to beat logistic regression** on this dataset — the paired
-  interval spans zero. It is retained for its handling of categorical/interaction structure
-  and for per-order SHAP attributions, not on a claim of superior accuracy.
+- **LightGBM is not shown to beat logistic regression** on this dataset, and the reason is
+  structural rather than statistical: the generator composes risk additively (a sigmoid
+  over a weighted sum), so a logistic model is *correctly specified* here and cannot be
+  beaten by a tree. Measured, not assumed — adding all 231 pairwise interactions to the
+  logistic model moves test PR-AUC by −0.038. The tree is retained because real order
+  flow does contain interactions; that advantage simply cannot be demonstrated on this
+  data, so it is not claimed.
+- **The headline cost comparison has roughly 12% headroom.** "Blocking all COD costs more
+  than approving everything" holds while challenging a genuine COD customer costs more
+  than ₹123; we assume ₹138. It is an argument with a published pivot, not a measurement.
 - **Recall is modest by design.** At the frozen threshold the model catches roughly a third
   of returns. It is a ranker that routes attention, not an oracle that stops fraud.
 - **No drift monitoring.** A production deployment would need population-stability

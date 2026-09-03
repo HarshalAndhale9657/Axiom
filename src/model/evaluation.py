@@ -405,3 +405,43 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+def block_all_breakeven(y: np.ndarray, order_value: np.ndarray, is_cod: np.ndarray,
+                        cm: CostModel | None = None) -> dict:
+    """At what false-positive cost does "block all COD" stop being worse than doing nothing?
+
+    The headline finding — that the blunt policy costs more than approving everything — is
+    not a measurement, it is an arithmetic consequence of the assumed cost model. Blocking
+    all COD buys back ``c_FN`` on every COD order that would have returned, and pays
+    ``c_FP`` on every COD order that would not. So the ordering flips at
+
+        mean c_FP per good COD order  ==  (total c_FN prevented) / (good COD orders)
+
+    Publishing that pivot converts the claim into an argument: a reader who disagrees with
+    our friction cost can see immediately whether their own number is above or below it.
+    Reporting the headroom keeps us honest about how much slack the conclusion actually has.
+    """
+    cm = cm or CostModel()
+    y = np.asarray(y).astype(bool)
+    order_value = np.asarray(order_value, dtype=float)
+    is_cod = np.asarray(is_cod).astype(bool)
+
+    good_cod = is_cod & ~y
+    rto_cod = is_cod & y
+    prevented = float(cm.c_fn(order_value)[rto_cod].sum())
+    n_good_cod = int(good_cod.sum())
+    breakeven = prevented / n_good_cod if n_good_cod else float("nan")
+    assumed = float(cm.c_fp(order_value)[good_cod].mean()) if n_good_cod else float("nan")
+
+    return {
+        "n_good_cod_challenged": n_good_cod,
+        "n_cod_returns_prevented": int(rto_cod.sum()),
+        "value_of_prevented_returns": prevented,
+        "breakeven_mean_fp_cost": breakeven,
+        "assumed_mean_fp_cost": assumed,
+        "headroom_ratio": assumed / breakeven if breakeven else float("nan"),
+        "note": ("'Block all COD costs more than approving everything' holds only while the "
+                 "cost of challenging a genuine COD customer exceeds the break-even figure. "
+                 "Substitute your own friction cost to check the claim against your economics."),
+    }

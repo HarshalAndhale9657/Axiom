@@ -1,22 +1,42 @@
 <!-- Line 1 = the problem. Line 2 = the demo. Line 3 = proof. (Judges & recruiters read this first.) -->
 # 🛡️ Axiom — AI Risk Manager for COD / RTO Fraud
 
-> **Blocking all COD costs more than approving everything.** We measured it: ₹71,776 vs ₹64,795 per 1,000 orders.
-> That is the false-positive problem in rupees — and it is the problem Axiom solves. It scores every cash-on-delivery order for return-to-origin risk, **explains** the score, **investigates** borderline cases against policy with a bounded agent, and drives an **auditable, defense-only, reversible** action chosen to minimise rupee cost — not a leaderboard number.
+> **Under our stated cost model, blocking every COD order costs a merchant more than blocking none** — ₹71,776 against ₹64,795 per 1,000 orders. That is not a measurement, it is arithmetic on an assumed friction cost, so we publish the break-even that would overturn it (₹123; we assume ₹138).
+> Getting that trade-off right is the whole problem, and it is what Axiom is built to make provable.
 
 <p>
+<a href="https://github.com/HarshalAndhale9657/Axiom/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/HarshalAndhale9657/Axiom/actions/workflows/ci.yml/badge.svg?branch=main"></a>
 <img alt="Razorpay AI Buildathon · Track 2" src="https://img.shields.io/badge/Razorpay%20AI%20Buildathon-Track%202%20·%20AI%20Risk%20Manager-2563eb">
-<img alt="tests" src="https://img.shields.io/badge/tests-175%20passing-16a34a">
 <img alt="python" src="https://img.shields.io/badge/python-3.10%2B-3776AB">
 <img alt="next.js" src="https://img.shields.io/badge/dashboard-Next.js%2016-111827">
 <img alt="posture" src="https://img.shields.io/badge/posture-defense--only-475569">
-<img alt="budget" src="https://img.shields.io/badge/budget-%240%20free%20tier-16a34a">
 <img alt="license" src="https://img.shields.io/badge/license-MIT-64748b">
 </p>
 
-**Built for the Razorpay AI Buildathon (Track 2).** A calibrated **LightGBM** detector + **SHAP** explanations + a **bounded Gemini agent** (typed tools, policy RAG, schema-constrained decisions) + an **immutable audit trail** — served through **FastAPI** and a **Next.js** risk console. Runs on a **$0 free tier**.
+<!-- The CI badge is live: it rebuilds the dataset and model from a clean checkout, regenerates
+     every published number, audits them for consistency, and runs the full test suite. A
+     hand-typed "tests passing" badge would contradict the claim a few lines below it. -->
+
+Axiom scores every cash-on-delivery order for return-to-origin risk, **explains** the score with SHAP, **investigates** borderline cases against written policy with a bounded agent, and drives an **auditable, reversible, defense-only** action chosen to minimise rupee cost — not a leaderboard number.
 
 > 🎥 **Demo video:** _<add link — record the one-click "Play demo" walkthrough>_
+> 🔗 **Live console:** _<add link, or run it locally in two commands below>_
+
+### The 60-second version
+
+| | held-out test split, scored once |
+|---|---|
+| Cheaper than blocking all COD | **₹20,578** per 1,000 orders _(95% CI ₹14,404–₹25,979)_ |
+| PR-AUC | **0.509** _(95% CI 0.467–0.549)_ vs a 0.169 prevalence floor |
+| Optimism we declined to claim | **₹1,570** per 1,000 orders — the threshold is fitted on validation, never on test |
+
+Three things that are unusual, and the reason to keep reading: the operating threshold is chosen **out-of-sample** and the gap is published; a **7-day outcome-availability lag** closes a leak most pipelines have; and the ablation **reports the comparison we lose**.
+
+<!-- Add screenshots to docs/screenshots/ then uncomment:
+![Axiom risk console](docs/screenshots/dashboard-light.png)
+-->
+
+**Stack:** calibrated **LightGBM** + **SHAP** · a **bounded LLM agent** (typed tools, policy RAG, schema-constrained output) · **FastAPI** · **Next.js 16** console · immutable **SQLite** audit. Runs on a **$0 free tier**.
 
 ---
 
@@ -45,7 +65,9 @@ python -m src.model.full_report     # rewrites docs/evaluation.md, the figures a
 | **Block all COD (naive)** | **₹71,776** ← *worse than doing nothing* |
 | **Axiom @ the frozen threshold** | **₹51,199** |
 
-**₹20,578 cheaper per 1,000 orders than blocking all COD** (95% CI ₹14,404–₹25,979) and **21% cheaper than approving everything.** That "block-all-COD is worse than nothing" row *is* the false-positive-cost argument, in rupees.
+**₹20,578 cheaper per 1,000 orders than blocking all COD** (95% CI ₹14,404–₹25,979) and **21% cheaper than approving everything.**
+
+**And the middle row is a claim, so here is its break-even.** That blocking all COD costs more than doing nothing is not a measurement — it is arithmetic on an assumed friction cost, and it should be read as one. The policy would prevent **467** COD returns worth ₹179,693 while challenging **1,457** genuine COD customers, so it turns bad above **₹123** of cost per challenged customer. We assume **₹138** — only **1.12×** the break-even. Thin. Substitute your own number for what it costs to make a good customer prove themselves and the conclusion follows, or it does not; the dashboard slider exists for exactly that. Full working in [docs/evaluation.md §4](docs/evaluation.md).
 
 ![BMR rupee cost curve](docs/figures/cost_curve.png)
 
@@ -65,8 +87,10 @@ Sweeping the cost curve on test and quoting its minimum is threshold-selection l
 **2. We found a second leak inside our own leakage-safe pipeline.**
 "Use only the past" is not strict enough. An order placed today cannot know whether *yesterday's* order was returned — the delivery attempt has not resolved. Every label-derived history feature is therefore held back by a **7-day outcome-availability lag**. Cost of the correction: **0.0027 PR-AUC**, measured and published.
 
-**3. We report the comparison we lose.**
-LightGBM beats a hand-written expert scorecard by a clear margin (PR-AUC gain +0.032 to +0.077, paired bootstrap). Against a calibrated **logistic regression** the interval is **[−0.010, +0.017] — it spans zero, so we have not shown an advantage, and we say so.** LightGBM stays for its categorical/interaction handling and per-order SHAP attributions, not on a claim we cannot support.
+**3. We report the comparison we lose — and explain why we lose it.**
+LightGBM beats a hand-written expert scorecard clearly (PR-AUC gain +0.032 to +0.077, paired bootstrap). Against a calibrated **logistic regression** the interval is **[−0.010, +0.017] — it spans zero, so we have not shown an advantage.**
+
+The interesting part is *why*, and it is not a fact about RTO. Our generator composes risk **additively** — a sigmoid over a weighted sum, with no interaction terms anywhere — so logistic regression is the **correctly specified** model for this world and cannot be beaten by a tree ensemble except by luck. We measured that rather than asserting it: adding all **231** pairwise interactions to the logistic model changes test PR-AUC by **−0.038**. There is no non-additive structure to find. That is a limitation of our **synthetic data**, not a result about real order flow, where interactions plainly exist — a first-time buyer at a high-risk pincode is worse than the sum of those two facts. We keep LightGBM because it will find that structure when the data has it; on *this* dataset we cannot demonstrate the advantage, so we do not claim it.
 
 | model | τ (val-fitted) | PR-AUC | Brier | ₹ / 1k |
 |---|---:|---:|---:|---:|
@@ -87,6 +111,14 @@ A portfolio-level FP rate hides the part that matters. `fp_rate_on_good` is the 
 A genuine tier-3 buyer is **3.8× more likely** to be challenged than a tier-1 buyer. This is exactly why the response is **dynamic friction, never a block** — a mis-flagged customer confirms an address or takes a prepaid link and clears themselves in one step. It uses no protected attribute; city tier, order value and category are commercial variables, so this is an operational harm audit, not a legal fairness audit.
 
 *And the classic exhibit:* fitting the target encoders on all rows including their own label produces **ROC-AUC 0.966 / PR-AUC 0.841** — the sort of figure public RTO models advertise. We can manufacture it in one line and it is worthless. Toggle it live in the dashboard.
+
+---
+
+## Razorpay already grades COD risk. So what is this?
+
+Magic Checkout already *"nudges high-risk shoppers to prepay"*, *"charges differential COD fees for medium-risk orders"* and *"disables COD for high-risk users with a history of failed deliveries"* ([razorpay.com/magic-checkout](https://razorpay.com/magic-checkout/)). The graded response in this repo is not a new idea — it is the idea Razorpay shipped, and any submission that frames a binary COD block as the state of the art has not used the product.
+
+What Axiom adds is the layer underneath that decision: the **evidence** for which grade is right and what being wrong costs, in rupees. A threshold fitted out-of-sample with the optimism published. A break-even for every cost assumption, so a reader can substitute their own. The per-slice bill that genuine customers pay for our false positives. An immutable trail that makes each decision defensible weeks later. The "block all COD" row in the table above is a reference point for the arithmetic, not a description of how anyone serious operates.
 
 ---
 
