@@ -90,7 +90,8 @@ Catching a third of returns sounds low, so we priced the alternatives rather tha
 | 0.24 | 0.737 | ₹52,142 | +₹943 |
 | **0.335 (shipped)** | **0.541** | **₹51,250** | — |
 | 0.54 | 0.424 | ₹49,628 | **−₹1,570** |
-| 0.67 | 0.356 | ₹52,952 | +₹1,702 |
+| 0.67 | 0.356 | ₹52,952 | +₹1,753 |
+| 0.79 | 0.313 | ₹56,913 | +₹5,714 |
 
 Past roughly 0.65 the friction inflicted on good customers outruns the returns prevented. And note the honest wrinkle in row three: **recall 0.54 would have been ₹1,570 cheaper on this test split.** That is exactly the optimism gap we publish — validation put the threshold at 0.315, and taking the cheaper point requires having seen the test set, which is the one thing we will not do.
 
