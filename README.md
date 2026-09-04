@@ -16,7 +16,7 @@
      every published number, audits them for consistency, and runs the full test suite. A
      hand-typed "tests passing" badge would contradict the claim a few lines below it. -->
 
-> 🎥 **Demo video:** _<add link — the 5-minute walkthrough>_ · 🔗 **Live console:** _<add link, or run it locally in two commands below>_
+> 🎥 **[Demo video (5 min)](https://drive.google.com/file/d/1Pe6vDwQBnelte8P8iuHa05H_YJCl1veN/view?usp=sharing)** · 🔗 **Live console:** run it locally in two commands below
 
 ![The Axiom risk console — risk queue, calibrated score, recommended action and SHAP drivers](docs/screenshots/console.png)
 
